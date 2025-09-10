@@ -1,0 +1,29 @@
+defaults:
+  - agent: ppo
+  - playground: TensegrityQuadrupedWalk
+  - _self_
+
+# Suppress auto export
+hydra:  
+  verbose: false
+  output_subdir: null  
+  run:  
+    dir: .
+  job_logging:
+    root:
+      level: WARNING  # Set this to ERROR to reduce even more logs
+
+# Checkpointing
+checkpointing: true
+checkpoint_directory: /tmp/
+export_video: false
+render_every: 1
+render_camera: -1
+
+# Experiment logging
+wandb: false
+wandb_project: learning
+wandb_entity: tensegrity
+tensorboard: true
+progress_bar: false
+verbose: true

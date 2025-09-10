@@ -1,0 +1,60 @@
+Mon Sep  8 15:29:12 2025
+ERROR: could not create window
+
+Mon Sep  8 15:45:35 2025
+ERROR: could not create window
+
+Mon Sep  8 15:46:35 2025
+ERROR: could not create window
+
+Mon Sep  8 15:51:04 2025
+ERROR: could not create window
+
+Mon Sep  8 16:17:47 2025
+ERROR: could not create window
+
+Mon Sep  8 14:34:00 2025
+ERROR: could not create window
+
+Mon Sep  8 14:35:04 2025
+ERROR: could not create window
+
+Mon Sep  8 15:48:05 2025
+ERROR: could not create window
+
+Mon Sep  8 15:59:21 2025
+ERROR: could not create window
+
+Mon Sep  8 16:03:04 2025
+ERROR: could not create window
+
+Mon Sep  8 16:04:00 2025
+ERROR: could not create window
+
+Mon Sep  8 16:04:26 2025
+ERROR: could not create window
+
+Mon Sep  8 16:06:12 2025
+ERROR: could not create window
+
+Mon Sep  8 18:15:37 2025
+ERROR: could not create window
+
+Mon Sep  8 19:11:28 2025
+ERROR: could not create window
+
+Mon Sep  8 19:27:07 2025
+ERROR: could not create window
+
+Mon Sep  8 19:33:07 2025
+ERROR: could not create window
+
+Mon Sep  8 19:41:05 2025
+ERROR: could not create window
+
+Mon Sep  8 20:02:35 2025
+ERROR: could not create window
+
+Mon Sep  8 20:04:24 2025
+ERROR: could not create window
+
