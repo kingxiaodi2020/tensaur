@@ -117,8 +117,8 @@ class Walk(mjx_env.MjxEnv):
         self._mj_model.actuator_biasprm[:, 1] = -config.Kp
 
         # Increase offscreen framebuffer size to render at higher resolutions.
-        self._mj_model.vis.global_.offwidth = 3840
-        self._mj_model.vis.global_.offheight = 2160
+        self._mj_model.vis.global_.offwidth = 1920
+        self._mj_model.vis.global_.offheight = 1080
 
         self._mjx_model = mjx.put_model(self._mj_model)
         self._xml_path = xml_path
@@ -447,7 +447,7 @@ class Walk(mjx_env.MjxEnv):
         return (
             jp.square(0.2) / (jp.square(global_vel[0] - target_vel) + jp.square(0.2))
             + jp.square(0.05) / (jp.square(global_vel[1]) + jp.square(0.05))
-            + global_vel[0]
+            + 10 *global_vel[0]
         ) / 2.0
 
     def _reward_local_yaw(
