@@ -19,7 +19,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-
+import time
 import hydra
 from omegaconf import DictConfig
 from datetime import datetime
@@ -40,7 +40,7 @@ from orbax import checkpoint as ocp
 from tensorboardX import SummaryWriter
 import wandb
 from tqdm import tqdm
-
+import copy
 # load crawler_playground to register environments
 import tensegrity_playground  # noqa: F401 # pylint:disable=unused-import
 from mujoco_playground import registry
@@ -86,10 +86,17 @@ def huzzah(cfg):
 def main(cfg: DictConfig):
     OmegaConf.set_struct(cfg, False)
     hydra_cfg = HydraConfig.get()
+    # import ipdb
+    # ipdb.set_trace()
     cfg["agent_id"] = hydra_cfg.runtime.choices["agent"]
     cfg["environment_id"] = hydra_cfg.runtime.choices["playground"]
-
+    # print("Hydra env choice =", HydraConfig.get().runtime.choices.get("playground"))
+    # print("cfg.environment_id =", cfg["environment_id"])
     env_cfg = registry.get_default_config(cfg.environment_id)
+
+    if hasattr(cfg, "playground"):
+        env_cfg.update(cfg.playground)
+
     env = registry.load(cfg.environment_id, config_overrides=env_cfg)
 
     time_stamp = datetime.now().strftime("%y%m%d%H%M%S")
@@ -144,21 +151,52 @@ def main(cfg: DictConfig):
 
     # Experiment logging function
     def progress_fn(num_steps, metrics):
+        # if cfg.progress_bar:
+        #     progress_bar.update(num_steps)
+
+        # if cfg.wandb:
+        #     wandb.log(metrics, step=num_steps)
+
+        # if cfg.tensorboard:
+        #     for key, value in metrics.items():
+        #         writer.add_scalar(key, value, num_steps)
+        #     writer.flush()
+
+        # if cfg.verbose:
+        #     print(
+        #         f"Step {num_steps}: reward={metrics['eval/episode_reward']:.3f}"
+        #     )
+
         if cfg.progress_bar:
-            progress_bar.update(num_steps)
+            if not hasattr(progress_fn, 'last_step'):
+                progress_fn.last_step = 0
+            progress_bar.update(num_steps - progress_fn.last_step)
+            progress_fn.last_step = num_steps
+
+        # 记录所有类型的metrics
+        log_dict = {}
+        for key, value in metrics.items():
+            try:
+                if hasattr(value, 'item'):
+                    log_dict[key] = float(value.item())
+                elif isinstance(value, (int, float)):
+                    log_dict[key] = float(value)
+                elif hasattr(value, '__float__'):
+                    log_dict[key] = float(value)
+            except (TypeError, ValueError):
+                continue  # 跳过无法转换的metrics
 
         if cfg.wandb:
-            wandb.log(metrics, step=num_steps)
+            wandb.log(log_dict, step=num_steps)
 
         if cfg.tensorboard:
-            for key, value in metrics.items():
+            for key, value in log_dict.items():
                 writer.add_scalar(key, value, num_steps)
             writer.flush()
 
         if cfg.verbose:
-            print(
-                f"Step {num_steps}: reward={metrics['eval/episode_reward']:.3f}"
-            )
+            print(f"Step {num_steps}: {log_dict}")
+
 
     # Main training routine
     network_factory = functools.partial(
@@ -167,6 +205,8 @@ def main(cfg: DictConfig):
     if "network_factory" in cfg.agent:
         del cfg.agent.network_factory
 
+    # import ipdb
+    # ipdb.set_trace()
     make_inference_fn, params, _ = ppo.train(
         environment=env,
         progress_fn=progress_fn,

@@ -15,7 +15,7 @@ hydra:
 
 # Checkpointing
 checkpointing: true
-checkpoint_directory: /tmp/
+checkpoint_directory: /media/di/4441-E469/tmp
 export_video: false
 render_every: 1
 render_camera: -1

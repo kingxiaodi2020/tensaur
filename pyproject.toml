@@ -3,7 +3,7 @@ name = "tensaur"
 version = "0.0.1"
 description = "Training code for Tensaur."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
     {name="Alexander Dittrich", email="alexander.dittrich@epfl.ch"},

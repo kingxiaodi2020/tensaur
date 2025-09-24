@@ -39,7 +39,7 @@ DEFAULT_CONFIG = {
         "leg_geom": {
             "geom": {
                 "type": "capsule",
-                "size": [0.015],
+                "size": [0.02],
                 "density": 1370.0,
                 "rgba": [0.8, 0.6, 0.4, 1],
                 "group": 1,
@@ -48,7 +48,7 @@ DEFAULT_CONFIG = {
         },
         "lateral_tendon": {
             "tendon": {
-                "stiffness": 1200,
+                "stiffness": 3000,
                 "damping": 1.0,
                 "frictionloss": 0.05,
                 "width": 0.002,
@@ -57,7 +57,7 @@ DEFAULT_CONFIG = {
         },
         "diagonal_tendon": {
             "tendon": {
-                "stiffness": 1200,
+                "stiffness": 3000,
                 "damping": 1.0,
                 "frictionloss": 0.05,
                 "width": 0.002,
@@ -72,7 +72,7 @@ DEFAULT_CONFIG = {
         "foot_radius": 0.02,
     },
     "spine": {
-        "num_segments": 8,
+        "num_segments": 3,
         "segment_spacing": 0.06,
         "initial_z": 0.25,
         "alpha": np.pi / 4,
@@ -370,6 +370,7 @@ def add_leg(parent_body, prefix, base_pos):
         friction=[0.8, 0.02, 0.01],
     )
 
+    foot.add("site", name=f"{prefix}_foot_site", pos=[0, 0, 0], size=[foot_r])
 
 def add_actuation(model, config):
     act_cfg = config["actuation"]
@@ -447,6 +448,23 @@ def add_sensors(model, config):
         objname="com_vertebrae_1",
         name="orientation",
     )
+
+    # 为每只脚添加全局线性速度传感器
+    for leg in ["fr", "fl", "rr", "rl"]:
+        sensor.add(
+            "framelinvel",
+            name=f"{leg}_foot_global_linvel",
+            objtype="site",
+            objname=f"{leg}_foot_site",
+        )
+
+    # 每个脚和地面之间的触觉传感器
+    for leg in ["fr", "fl", "rr", "rl"]:
+        sensor.add(
+            "touch",
+            name=f"{leg}_foot_touch",
+            site=f"{leg}_foot_site",
+        )
 
 
 def generate_keyframe(model, config):
