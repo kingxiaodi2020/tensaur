@@ -10,8 +10,8 @@ GO1_HIP_TO_HIP_LENGTH = 2 * 0.1881  # = 0.3762 m
 DEFAULT_CONFIG = {
     "output_path": ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml",
     "sim": {
-        "timestep": 0.001,
-        "integrator": "Euler",
+        "timestep": 0.002,
+        "integrator": "RK4",
         "iterations": 100,
         "ls_iterations": 50,
     },
@@ -26,7 +26,7 @@ DEFAULT_CONFIG = {
                 "frictionloss": 0.001,
             },
             "position": {
-                "kp": 35.0,
+                "kp": 50,
                 "ctrlrange": [-2.356, 2.356],
                 "forcerange": [-50, 50],
             },
@@ -35,7 +35,7 @@ DEFAULT_CONFIG = {
             "geom": {
                 "type": "capsule",
                 "size": [0.01],
-                "density": 800,  # 370.0,
+                "density": 1750,
                 "rgba": [0.8, 0.6, 0.4, 1],
                 "group": 0,
             },
@@ -44,33 +44,33 @@ DEFAULT_CONFIG = {
             "geom": {
                 "type": "capsule",
                 "size": [0.02],  # 胶囊半径更接近 go1 可视化尺度
-                "density": 1370.0,  # 实际质量由 inertial 指定
+                "density": 1750.0,  
                 "rgba": [0.8, 0.6, 0.4, 1],
                 "group": 1,
-                "conaffinity": 1,
+                "conaffinity": 0,
             },
         },
         "lateral_tendon": {
             "tendon": {
-                "stiffness": 3000,
-                "damping": 1.0,
-                "frictionloss": 0.05,
+                "stiffness": 8000,
+                "damping": 10,
+                "frictionloss": 0.02,
                 "width": 0.002,
                 "rgba": [1.0, 0.0, 0.0, 0.5],
             },
         },
         "diagonal_tendon": {
             "tendon": {
-                "stiffness": 3000,
-                "damping": 1.0,
-                "frictionloss": 0.05,
+                "stiffness": 8000,
+                "damping": 10,
+                "frictionloss": 0.02,
                 "width": 0.002,
                 "rgba": [0.0, 0.0, 1.0, 0.5],
             },
         },
     },
     "leg_dimensions": {
-        "hip_roll_length": 0.045,   # 外展短连杆长度（水平）
+        "hip_roll_length": 0.05,   # 外展短连杆长度（水平）
         "hip_pitch_length": 0.213,  # 大腿段长度
         "shin_length": 0.213,       # 小腿段长度
         "foot_radius": 0.023,       # 足端球半径
@@ -78,13 +78,13 @@ DEFAULT_CONFIG = {
     "spine": {
         "num_segments": 3,
         "segment_spacing": 0.06,
-        "initial_z": 0.38,  # 腿变长后抬高初始质心高度以避免穿地 0.474 站直
+        "initial_z": 0.38,  # 腿变长后抬高初始质心高度以避免穿地 0.474 站直 0.38
         "alpha": np.pi / 4,
         "alpha_length": 0.08,
         "beta": np.pi / 4,
         "beta_length": 0.06,
-        "lateral_pretension": 0.98,
-        "diagonal_pretension": 0.98,
+        "lateral_pretension": 1,
+        "diagonal_pretension": 1,
 
         # 固定身长配置（默认对齐 go1 髋-髋间距）
         "enforce_fixed_length": True,
@@ -93,7 +93,7 @@ DEFAULT_CONFIG = {
     },
     "actuation": {
         # 参考 go1 的关节范围与力矩限制（位置型执行器的 forcerange）
-        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7, 23.7]},
+        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-35.55, 35.55]},
         "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7, 23.7]},
         "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55, 35.55]},
     },
@@ -223,6 +223,7 @@ def add_tetrahedral_spine(model, config):
         front_extra = extra_total / 2.0
         rear_extra = extra_total / 2.0
 
+    imu_x = front_extra if (enforce and extra_total > tol) else 0.0
     # 为了整体关于 x=0 对称，链段中心放在 x=0
     # 链起点、终点（不含延长段）分别为 +chain_len/2 与 -chain_len/2
     # 前/后延长段分别从这两端继续向外延伸 front_extra 和 rear_extra
@@ -270,7 +271,8 @@ def add_tetrahedral_spine(model, config):
                 mode="trackcom",
             )
         body.add("joint", name=f"joint_{name}", type="free")
-        body.add("site", name=f"com_vertebrae_{i}", pos=[0, 0, 0], size=[0.005])
+        if i == 0:
+            body.add("site", name="com_vertebrae_1", pos=[imu_x, 0, 0], size=[0.006])
 
         for key, endpoint in endpoints.items():
             body.add(
@@ -380,17 +382,8 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_hip_roll",
         axis=[1, 0, 0],
         range=hip_roll_range,
-        damping=0.5,
-        frictionloss=0.3,
-        armature=0.005,
     )
-    # 近似赋予髋外展部件的质量与惯量（参考 go1）
-    root.add(
-        "inertial",
-        pos=[-roll_len / 2, 0, 0],
-        mass=0.68,
-        diaginertia=[0.000734, 0.000468, 0.000399],
-    )
+
     root.add(
         "geom",
         name=f"{prefix}_hip_roll_geom",
@@ -405,17 +398,8 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_hip_pitch",
         axis=[0, 1, 0],
         range=hip_pitch_range,
-        damping=0.5,
-        frictionloss=0.3,
-        armature=0.005,
     )
-    # 大腿质量与惯量（参考 go1）
-    hip.add(
-        "inertial",
-        pos=[0, 0, -pitch_len / 2],
-        mass=1.009,
-        diaginertia=[0.004787, 0.004609, 0.000709],
-    )
+
     hip.add(
         "geom",
         name=f"{prefix}_hip_pitch_geom",
@@ -430,22 +414,14 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_knee",
         axis=[0, 1, 0],
         range=knee_range,
-        damping=0.5,
-        frictionloss=1.0,  # 膝关节摩擦更大
-        armature=0.005,
     )
-    # 小腿质量与惯量（参考 go1）
-    knee.add(
-        "inertial",
-        pos=[0, 0, -shin_len / 2],
-        mass=0.196,
-        diaginertia=[0.001498, 0.001485, 3.6e-05],
-    )
+
     knee.add(
         "geom",
         name=f"{prefix}_shin_geom",
         fromto=[0, 0, 0, 0, 0, -shin_len],
         dclass="leg_geom",
+        conaffinity=1,
     )
 
     # 足端
@@ -458,8 +434,6 @@ def add_leg(parent_body, prefix, base_pos):
         conaffinity=1,
         dclass="leg_geom",
         friction=[0.8, 0.02, 0.01],
-        condim=3,
-        solimp=[0.9, 0.95, 0.023],
     )
     foot.add("site", name=f"{prefix}_foot_site", pos=[0, 0, 0], size=[foot_r])
 
@@ -480,27 +454,68 @@ def add_actuation(model, config):
 
 
 def add_sensors(model, config):
+    # Add sensors
     sensor = model.sensor
 
-    # 关节位置/速度
+    # Add joint position and velocity sensors for all leg joints
     for leg in ["fr", "fl", "rr", "rl"]:
         for joint_name in ["hip_roll", "hip_pitch", "knee"]:
             full_joint_name = f"{leg}_{joint_name}"
-            sensor.add("jointpos", name=f"{full_joint_name}_pos", joint=full_joint_name)
-            sensor.add("jointvel", name=f"{full_joint_name}_vel", joint=full_joint_name)
+            sensor.add(
+                "jointpos",
+                name=f"{full_joint_name}_pos",
+                joint=full_joint_name,
+            )
 
-    # IMU-based 传感器（挂在中段）
+    # duplication to simplify reading out sensor data.
+    for leg in ["fr", "fl", "rr", "rl"]:
+        for joint_name in ["hip_roll", "hip_pitch", "knee"]:
+            full_joint_name = f"{leg}_{joint_name}"
+            sensor.add(
+                "jointvel",
+                name=f"{full_joint_name}_vel",
+                joint=full_joint_name,
+            )
+
+    # IMU-based sensors
     sensor.add("gyro", site="com_vertebrae_1", name="gyro")
     sensor.add("velocimeter", site="com_vertebrae_1", name="local_linvel")
     sensor.add("accelerometer", site="com_vertebrae_1", name="accelerometer")
-    sensor.add("framepos", objtype="site", objname="com_vertebrae_1", name="position")
-    sensor.add("framezaxis", objtype="site", objname="com_vertebrae_1", name="upvector")
-    sensor.add("framexaxis", objtype="site", objname="com_vertebrae_1", name="forwardvector")
-    sensor.add("framelinvel", objtype="site", objname="com_vertebrae_1", name="global_linvel")
-    sensor.add("frameangvel", objtype="site", objname="com_vertebrae_1", name="global_angvel")
-    sensor.add("framequat", objtype="site", objname="com_vertebrae_1", name="orientation")
+    sensor.add(
+        "framepos", objtype="site", objname="com_vertebrae_1", name="position"
+    )
+    sensor.add(
+        "framezaxis",
+        objtype="site",
+        objname="com_vertebrae_1",
+        name="upvector",
+    )
+    sensor.add(
+        "framexaxis",
+        objtype="site",
+        objname="com_vertebrae_1",
+        name="forwardvector",
+    )
+    sensor.add(
+        "framelinvel",
+        objtype="site",
+        objname="com_vertebrae_1",
+        name="global_linvel",
+    )
+    sensor.add(
+        "frameangvel",
+        objtype="site",
+        objname="com_vertebrae_1",
+        name="global_angvel",
+    )
+    sensor.add(
+        "framequat",
+        objtype="site",
+        objname="com_vertebrae_1",
+        name="orientation",
+    )
 
-    # 每只脚的全局速度与触觉
+    # 为每只脚添加全局线性速度传感器
     for leg in ["fr", "fl", "rr", "rl"]:
         sensor.add(
             "framelinvel",
@@ -508,7 +523,14 @@ def add_sensors(model, config):
             objtype="site",
             objname=f"{leg}_foot_site",
         )
-        sensor.add("touch", name=f"{leg}_foot_touch", site=f"{leg}_foot_site")
+
+    # 每个脚和地面之间的触觉传感器
+    for leg in ["fr", "fl", "rr", "rl"]:
+        sensor.add(
+            "touch",
+            name=f"{leg}_foot_touch",
+            site=f"{leg}_foot_site",
+        )
 
 
 def generate_keyframe(model, config):
@@ -519,7 +541,7 @@ def generate_keyframe(model, config):
 
     qpos, ctrl = [], []
     for i in range(num_segments):
-        qpos.extend([0, 0, z, 1, 0, 0, 0])  # 自由体位姿：位置先放 0（由仿真稳定后决定）
+        qpos.extend([-i * spacing, 0, z, 1, 0, 0, 0])  # 自由体位姿：位置先放 0（由仿真稳定后决定）
         if i == 0 or i == num_segments - 1:
             qpos.extend(leg_q)
     ctrl = np.array(leg_q * 2)

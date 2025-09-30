@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=8G
-#SBATCH -J tensaurposener
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32G
+#SBATCH -J tens4_8000_10_rk_Arep10
 #SBATCH -p gpu
 #SBATCH --gpus=2
 #SBATCH -t 24:00:00

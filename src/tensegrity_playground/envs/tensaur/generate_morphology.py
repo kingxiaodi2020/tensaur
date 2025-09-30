@@ -48,7 +48,7 @@ DEFAULT_CONFIG = {
         },
         "lateral_tendon": {
             "tendon": {
-                "stiffness": 3000,
+                "stiffness": 1200,
                 "damping": 1.0,
                 "frictionloss": 0.05,
                 "width": 0.002,
@@ -57,7 +57,7 @@ DEFAULT_CONFIG = {
         },
         "diagonal_tendon": {
             "tendon": {
-                "stiffness": 3000,
+                "stiffness": 1200,
                 "damping": 1.0,
                 "frictionloss": 0.05,
                 "width": 0.002,
@@ -66,14 +66,14 @@ DEFAULT_CONFIG = {
         },
     },
     "leg_dimensions": {
-        "hip_roll_length": 0.04,
-        "hip_pitch_length": 0.08,
-        "shin_length": 0.12,
-        "foot_radius": 0.02,
+        "hip_roll_length": 0.05,
+        "hip_pitch_length": 0.213,
+        "shin_length": 0.213,
+        "foot_radius": 0.023,
     },
     "spine": {
         "num_segments": 3,
-        "segment_spacing": 0.06,
+        "segment_spacing": 0.16,
         "initial_z": 0.25,
         "alpha": np.pi / 4,
         "alpha_length": 0.08,
@@ -83,9 +83,9 @@ DEFAULT_CONFIG = {
         "diagonal_pretension": 0.98,
     },
     "actuation": {
-        "hip_roll": {"ctrlrange": [-0.785398, 0.785398]},
-        "hip_pitch": {"ctrlrange": [-0.785398, 1.5708]},
-        "knee": {"ctrlrange": [-1.57, 0.0]},
+        "hip_roll": {"ctrlrange": [-0.863, 0.863]},
+        "hip_pitch": {"ctrlrange": [-0.686, 4.501]},
+        "knee": {"ctrlrange": [-2.818, -0.888]},
     },
     "legs": {"z_offset": -0.025},
     "keyframe": {"leg_qpos": [-0.3, 0.8, -1.2, 0.3, 0.8, -1.2]},

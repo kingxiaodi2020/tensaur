@@ -42,48 +42,52 @@ POSITION_SENSOR = "position"
 def default_config() -> config_dict.ConfigDict:
     return config_dict.create(
         ctrl_dt=0.02,
-        sim_dt=0.001,
+        sim_dt=0.002,
         episode_length=1000,
-        Kp=50.0,
-        Kd=1.0,
-        action_repeat=1,
+        Kp=35.0,
+        Kd=0.5,
+        action_repeat=10,
         action_scale=0.5,
         history_len=1,
         soft_joint_pos_limit_factor=0.95,
         noise_config=config_dict.create(
-            level=1.0,  # Set to 0.0 to disable noise.
+            level=0.0,  # Set to 0.0 to disable noise.
             scales=config_dict.create(
                 joint_pos=0.03,
                 joint_vel=1.5,
                 gyro=0.2,
                 gravity=0.05,
                 linvel=0.1,
-                orientation=0.02,
             ),
         ),
         reward_config=config_dict.create(
-            target_x_vel=0.1,
+            cmd=[1.0, 0.0, 0.0],  # [x, y, z] m/s
             scales=config_dict.create(
-                # survival=0.1,
-                upright=0.1,
-                global_vel_x=5.0,
-                local_yaw=1.0,
+                # Tracking
+                tracking_lin_vel=1.0,
+                tracking_ang_vel=0.5,       
                 # Base reward.
-                # lin_vel_z=-0.001,
-                # ang_vel_xy=-0.05,
+                lin_vel_z=-0.5,
+                ang_vel_xy=-0.05,
+                orientation=-5.0,
+                # Other
+                dof_pos_limits=-1.0,
                 pose=0.5,
                 # Other.
-                termination=-2.0,
+                termination=-1.0,
+                # stand_still=-1.0,
                 # Regularization.
                 torques=-0.0002,
                 action_rate=-0.01,
                 energy=-0.001,
-                feet_clearance=-1.0,
-                feet_height=-0.1,
-                feet_slip=-0.05,
-                feet_air_time=0.05,
+                # Feet.
+                feet_clearance=-2.0,
+                feet_height=-0.2,
+                feet_slip=-0.1,
+                feet_air_time=0.1,
             ),
-            max_foot_height = 0.08 
+            tracking_sigma=0.25,
+            max_foot_height=0.1,
         ),
     )
 
@@ -131,23 +135,52 @@ class Walk(mjx_env.MjxEnv):
         self._init_ctrl = jp.array(self._mj_model.keyframe("stable_pose").ctrl)
 
         self._default_pose = jp.array(
-            [-0.3, 0.8, -1.2, 0.3, 0.8, -1.2, -0.3, 0.8, -1.2, 0.3, 0.8, -1.2]
+            [-0.06, 0.9, -1.55, 0.06, 0.9, -1.55, -0.06, 0.9, -1.55, 0.06, 0.9, -1.55]
         )
+        
+        # self._torso_body_id = self._mj_model.body(consts.ROOT_BODY).id
+        # self._torso_mass = self._mj_model.body_subtreemass[self._torso_body_id]
+        self._torso_body_id = self._mj_model.body("vertebrae_0").id        
 
+        # look for correct leg joint indices
+        self._leg_joint_names = [
+            "fr_hip_roll", "fr_hip_pitch", "fr_knee",
+            "fl_hip_roll", "fl_hip_pitch", "fl_knee",
+            "rr_hip_roll", "rr_hip_pitch", "rr_knee",
+            "rl_hip_roll", "rl_hip_pitch", "rl_knee",
+        ]
+
+        legs_qpos_idx = []
+        legs_qvel_idx = []
+        leg_joint_ids = []  # 添加这个来存储关节ID
+
+        for jname in self._leg_joint_names:
+            j_id = mujoco.mj_name2id(self._mj_model, mujoco.mjtObj.mjOBJ_JOINT, jname)
+            if j_id == -1:
+                raise ValueError(f"Joint '{jname}' not found in the model.")
+            legs_qpos_idx.append(self._mj_model.jnt_qposadr[j_id])
+            legs_qvel_idx.append(self._mj_model.jnt_dofadr[j_id])
+            leg_joint_ids.append(j_id)  # 添加关节ID
+
+        self._legs_qpos_idx = np.array(legs_qpos_idx, dtype=int)
+        self._legs_qvel_idx = np.array(legs_qvel_idx, dtype=int)
+
+        leg_joint_ranges = np.array([self._mj_model.jnt_range[jid] for jid in leg_joint_ids])
+        
         # Note: First joint is freejoint.
-        self._lowers, self._uppers = self.mj_model.jnt_range.T
+        # self._lowers, self._uppers = self.mj_model.jnt_range[1:].T
+        self._lowers, self._uppers = leg_joint_ranges.T
         self._soft_lowers = (
             self._lowers * self._config.soft_joint_pos_limit_factor
         )
         self._soft_uppers = (
             self._uppers * self._config.soft_joint_pos_limit_factor
         )
-        # 动态计算椎骨数量
-        self._n_vertebrae = 0
-        for i in range(self.mj_model.nbody):
-            body_name = mujoco.mj_id2name(self.mj_model, mujoco.mjtObj.mjOBJ_BODY, i)
-            if body_name and body_name.startswith("vertebrae_"):
-                self._n_vertebrae += 1      
+        
+        # 获取足部site id，用于计算摆动高度
+        self._feet_site_id = np.array(
+            [self._mj_model.site(f"{leg}_foot_site").id for leg in ["fr", "fl", "rr", "rl"]]
+            )
 
         # 获取足部触觉传感器
         foot_touch_sensor_adr = []
@@ -171,10 +204,6 @@ class Walk(mjx_env.MjxEnv):
             )
         self._foot_linvel_sensor_adr = jp.array(foot_linvel_sensor_adr)
 
-        # 获取足部site id，用于计算摆动高度
-        self._feet_site_id = np.array(
-            [self._mj_model.site(f"{leg}_foot_site").id for leg in ["fr", "fl", "rr", "rl"]]
-            )
             
     def reset(self, rng: jax.Array) -> mjx_env.State:
         qpos = self._init_q
@@ -206,12 +235,13 @@ class Walk(mjx_env.MjxEnv):
         )
 
         # Target velocity commands.
-        target_vel = self._config.reward_config.target_x_vel
+        cmd = jp.array(self._config.reward_config.cmd)
 
-        # Adaptation experiments.
+        # Adaptation experiments.``
         info = {
             "rng": rng,
-            "target_vel": target_vel,
+            "command": cmd,
+            "actual_vel": jp.zeros(3),  # 实际速度 (初始化为零向量)
             "last_act": jp.zeros(self.mjx_model.nu),
             "last_last_act": jp.zeros(self.mjx_model.nu),
             "feet_air_time": jp.zeros(4),
@@ -223,6 +253,8 @@ class Walk(mjx_env.MjxEnv):
         for k in self._config.reward_config.scales.keys():
             metrics[f"reward/{k}"] = jp.zeros(())
         metrics["swing_peak"] = jp.zeros(())
+        metrics["actual_vel_x"] = jp.zeros(())
+        metrics["actual_vel_y"] = jp.zeros(())
 
         obs = self._get_obs(data, info)
         reward, done = jp.zeros(2)
@@ -264,6 +296,7 @@ class Walk(mjx_env.MjxEnv):
         }
         reward = sum(rewards.values()) 
 
+        state.info["actual_vel"] = self.get_local_linvel(data)  #data.cvel[self._torso_body_id][3:]
         state.info["last_last_act"] = state.info["last_act"] 
         state.info["last_act"] = action
         state.info["feet_air_time"] *= ~contact
@@ -273,6 +306,8 @@ class Walk(mjx_env.MjxEnv):
         for k, v in rewards.items():
             state.metrics[f"reward/{k}"] = v
         state.metrics["swing_peak"] = jp.mean(state.info["swing_peak"])
+        state.metrics["actual_vel_x"] = state.info["actual_vel"][0]
+        state.metrics["actual_vel_y"] = state.info["actual_vel"][1]
 
         done = done.astype(reward.dtype)
         state = state.replace(data=data, obs=obs, reward=reward, done=done)
@@ -281,9 +316,7 @@ class Walk(mjx_env.MjxEnv):
 
     def _get_termination(self, data: mjx.Data) -> jax.Array:
         fall_termination = self.get_upvector(data)[-1] < 0
-        height_termination = self.get_position(data)[-1] < 0.25
-
-        return fall_termination | height_termination
+        return fall_termination 
 
     def _get_obs(
         self, data: mjx.Data, info: dict[str, Any]
@@ -295,15 +328,6 @@ class Walk(mjx_env.MjxEnv):
             + (2 * jax.random.uniform(noise_rng, shape=gyro.shape) - 1)
             * self._config.noise_config.level
             * self._config.noise_config.scales.gyro
-        )
-
-        orientation = self.get_orientation(data)
-        info["rng"], noise_rng = jax.random.split(info["rng"])
-        noisy_orientation = (
-            orientation
-            + (2 * jax.random.uniform(noise_rng, shape=orientation.shape) - 1)
-            * self._config.noise_config.level
-            * self._config.noise_config.scales.orientation
         )
 
         gravity = self.get_gravity(data)
@@ -349,8 +373,8 @@ class Walk(mjx_env.MjxEnv):
                 noisy_gravity,  # 3
                 noisy_joint_angles - self._default_pose,  # 12
                 noisy_joint_vel,  # 12
-                noisy_orientation,  # 4
                 info["last_act"],  # 12
+                info["command"],  # 3
             ]
         )
 
@@ -367,11 +391,10 @@ class Walk(mjx_env.MjxEnv):
             angvel,  # 3
             joint_angles - self._default_pose,  # 12
             joint_vel,  # 12
-            orientation,  # 4
-            feet_vel,
+            data.actuator_force,  # 12
             info["last_contact"],  # 4
+            feet_vel,
             info["feet_air_time"],  # 4
-            data.actuator_force
         ])
 
         return {
@@ -391,73 +414,54 @@ class Walk(mjx_env.MjxEnv):
     ) -> dict[str, jax.Array]:
         del metrics  # Unused.
         return {
-            # 基础存活奖励
-            # "survival": self._reward_survival(data, done),
-            # 姿态稳定性
-            "upright": self._reward_upright(data),
-            "global_vel_x": self._reward_global_vel_x(
-                info["target_vel"], self.get_global_linvel(data)
+            "tracking_lin_vel": self._reward_tracking_lin_vel(
+                info["command"], self.get_local_linvel(data)
             ),
-            "local_yaw": self._reward_local_yaw(self._get_yaw(data)),
-            # "lin_vel_z": self._cost_lin_vel_z(self.get_global_linvel(data)),
-            # "ang_vel_xy": self._cost_ang_vel_xy(self.get_global_angvel(data)),
-            "pose": self._reward_pose(data.qpos[7:]),
+            "tracking_ang_vel": self._reward_tracking_ang_vel(
+                info["command"], self.get_gyro(data)
+            ),
+            "lin_vel_z": self._cost_lin_vel_z(self.get_global_linvel(data)),
+            "ang_vel_xy": self._cost_ang_vel_xy(self.get_global_angvel(data)),
+            "orientation": self._cost_orientation(self.get_upvector(data)),
             "termination": self._cost_termination(done),
+            "pose": self._reward_pose(data.qpos[self._legs_qpos_idx]),
             "torques": self._cost_torques(data.actuator_force),
             "action_rate": self._cost_action_rate(
                 action, info["last_act"], info["last_last_act"]
             ),
-            "feet_slip": self._cost_feet_slip(data, contact),
+            "energy": self._cost_energy(data.qvel[self._legs_qvel_idx], data.actuator_force),
+            "feet_slip": self._cost_feet_slip(data, contact, info),
             "feet_clearance": self._cost_feet_clearance(data),
             "feet_height": self._cost_feet_height(
-                info["swing_peak"], first_contact
+                info["swing_peak"], first_contact, info
             ),
             "feet_air_time": self._reward_feet_air_time(
-                info["feet_air_time"], first_contact
+                info["feet_air_time"], first_contact, info["command"]
             ),
-            "energy": self._cost_energy(data.qvel[6 * self._n_vertebrae:], data.actuator_force),
+            "dof_pos_limits": self._cost_joint_pos_limits(data.qpos[self._legs_qpos_idx])
         }
 
-    # Custom rewards.
-    # 新增的奖励函数
-    def _reward_survival(self, data: mjx.Data, done: jax.Array) -> jax.Array:
-        return 1.0 - done.astype(jax.numpy.float32)
+    # Tracking rewards.
 
-    def _reward_upright(self, data: mjx.Data) -> jax.Array:
-        upvector_z = self.get_upvector(data)[-1]
-        height_z = self.get_position(data)[-1]
-        up_reward = jp.square(0.3)/(jp.square(upvector_z - 1.0) + jp.square(0.3))
-        height_reward = jp.clip(height_z * 2.5, 0, 1)
-        return (up_reward + height_reward) / 2.0
-
-    def _reward_pose(self, qpos: jax.Array) -> jax.Array:
-        # Stay close to the default pose.
-        weight = jp.array([1.0, 1.0, 0.1] * 4)
-        return jp.exp(-jp.sum(jp.square(qpos - self._default_pose) * weight))
-
-    def _reward_global_vel_x(
-        self, target_vel: jax.Array, global_vel: jax.Array
-    ) -> jax.Array:
-        # lin_vel_error = jp.square(global_vel[0] - target_vel)
-        # # scales gaussian so that R(0) = 0 and R(v>0) > 0
-        # scaling = (target_vel**2) / (-2 * jp.log(5e-2))
-        # return jp.exp(-lin_vel_error / scaling)
-        # return jp.square(target_vel) / (jp.square(global_vel[0] - target_vel) + jp.square(target_vel))
-
-        return (
-            jp.square(0.2) / (jp.square(global_vel[0] - target_vel) + jp.square(0.2))
-            + jp.square(0.05) / (jp.square(global_vel[1]) + jp.square(0.05))
-            + 10 *global_vel[0]
-        ) / 2.0
-
-    def _reward_local_yaw(
+    def _reward_tracking_lin_vel(
         self,
-        yaw: jax.Array,
+        commands: jax.Array,
+        local_vel: jax.Array,
+    ) -> jax.Array:
+        # Tracking of linear velocity commands (xy axes).
+        lin_vel_error = jp.sum(jp.square(commands[:2] - local_vel[:2]))
+        return jp.exp(-lin_vel_error / self._config.reward_config.tracking_sigma)
+
+    def _reward_tracking_ang_vel(
+        self,
+        commands: jax.Array,
+        ang_vel: jax.Array,
     ) -> jax.Array:
         # Tracking of angular velocity commands (yaw).
-        # ang_vel_error = jp.square(yaw)
-        # return jp.exp(-ang_vel_error / 2.0)
-        return jp.square(0.05) / (jp.square(yaw) + jp.square(0.05))
+        ang_vel_error = jp.square(commands[2] - ang_vel[2])
+        return jp.exp(-ang_vel_error / self._config.reward_config.tracking_sigma)
+
+    # Base-related rewards.
 
     def _cost_lin_vel_z(self, global_linvel) -> jax.Array:
         # Penalize z axis base linear velocity.
@@ -466,43 +470,11 @@ class Walk(mjx_env.MjxEnv):
     def _cost_ang_vel_xy(self, global_angvel) -> jax.Array:
         # Penalize xy axes base angular velocity.
         return jp.sum(jp.square(global_angvel[:2]))
+
+    def _cost_orientation(self, torso_zaxis: jax.Array) -> jax.Array:
+        # Penalize non flat base orientation.
+        return jp.sum(jp.square(torso_zaxis[:2]))
     
-    def _cost_termination(self, done: jax.Array) -> jax.Array:
-    # Penalize early termination.
-        return done
-
-    def _cost_feet_slip(
-        self, data: mjx.Data, contact: jax.Array
-    ) -> jax.Array:
-        feet_vel = data.sensordata[self._foot_linvel_sensor_adr]
-        vel_xy = feet_vel[..., :2]
-        vel_xy_norm_sq = jp.sum(jp.square(vel_xy), axis=-1)
-        return jp.sum(vel_xy_norm_sq * contact) 
-
-    def _cost_feet_clearance(self, data: mjx.Data) -> jax.Array:
-        feet_vel = data.sensordata[self._foot_linvel_sensor_adr]
-        vel_xy = feet_vel[..., :2]
-        vel_norm = jp.sqrt(jp.linalg.norm(vel_xy, axis=-1))
-        foot_pos = data.site_xpos[self._feet_site_id]
-        foot_z = foot_pos[..., -1]
-        delta = jp.abs(foot_z - self._config.reward_config.max_foot_height)
-        return jp.sum(delta * vel_norm)
-
-    def _cost_feet_height(
-        self,
-        swing_peak: jax.Array,
-        first_contact: jax.Array,
-    ) -> jax.Array:
-        error = swing_peak / self._config.reward_config.max_foot_height - 1.0
-        return jp.sum(jp.square(error) * first_contact) 
-   
-    def _reward_feet_air_time(
-        self, air_time: jax.Array, first_contact: jax.Array
-    ) -> jax.Array:
-        # Reward air time.
-        rew_air_time = jp.sum((air_time - 0.1) * first_contact)
-        return rew_air_time
-
     # Energy related rewards.
 
     def _cost_torques(self, torques: jax.Array) -> jax.Array:
@@ -520,14 +492,63 @@ class Walk(mjx_env.MjxEnv):
     ) -> jax.Array:
         del last_last_act  # Unused.
         return jp.sum(jp.square(act - last_act))
+    
+      # Other rewards.
 
-    def _get_yaw(self, data: mjx.Data) -> jax.Array:
-        quat = self.get_orientation(data)
-        # JAX SciPy expects [x, y, z, w] quaternion ordering
-        quat_xyzw = quat[jp.array([1, 2, 3, 0])]
-        euler_xyz = jsp.Rotation.from_quat(quat_xyzw).as_euler("xyz")
-        yaw = euler_xyz[2]
-        return yaw
+    def _reward_pose(self, qpos: jax.Array) -> jax.Array:
+        # Stay close to the default pose.
+        weight = jp.array([1.0, 1.0, 0.1] * 4)
+        return jp.exp(-jp.sum(jp.square(qpos - self._default_pose) * weight))
+
+    def _cost_termination(self, done: jax.Array) -> jax.Array:
+    # Penalize early termination.
+        return done
+
+    def _cost_joint_pos_limits(self, qpos: jax.Array) -> jax.Array:
+        # Penalize joints if they cross soft limits.
+        out_of_limits = -jp.clip(qpos - self._soft_lowers, None, 0.0)
+        out_of_limits += jp.clip(qpos - self._soft_uppers, 0.0, None)
+        return jp.sum(out_of_limits)
+
+    # Feet related rewards.
+    def _cost_feet_slip(
+        self, data: mjx.Data, contact: jax.Array, info: dict[str, Any]
+    ) -> jax.Array:
+        cmd_norm = jp.linalg.norm(info["command"])
+        feet_vel = data.sensordata[self._foot_linvel_sensor_adr]
+        vel_xy = feet_vel[..., :2]
+        vel_xy_norm_sq = jp.sum(jp.square(vel_xy), axis=-1)
+        return jp.sum(vel_xy_norm_sq * contact) * (cmd_norm > 0.01)
+
+    def _cost_feet_clearance(self, data: mjx.Data) -> jax.Array:
+        feet_vel = data.sensordata[self._foot_linvel_sensor_adr]
+        vel_xy = feet_vel[..., :2]
+        vel_norm = jp.sqrt(jp.linalg.norm(vel_xy, axis=-1))
+        foot_pos = data.site_xpos[self._feet_site_id]
+        foot_z = foot_pos[..., -1]
+        delta = jp.abs(foot_z - self._config.reward_config.max_foot_height)
+        return jp.sum(delta * vel_norm)
+
+    def _cost_feet_height(
+        self,
+        swing_peak: jax.Array,
+        first_contact: jax.Array,
+        info: dict[str, Any],
+    ) -> jax.Array:
+        cmd_norm = jp.linalg.norm(info["command"])
+        error = swing_peak / self._config.reward_config.max_foot_height - 1.0
+        return jp.sum(jp.square(error) * first_contact) * (cmd_norm > 0.01)
+
+    def _reward_feet_air_time(
+        self, air_time: jax.Array, first_contact: jax.Array, commands: jax.Array
+    ) -> jax.Array:
+        # Reward air time.
+        cmd_norm = jp.linalg.norm(commands)
+        rew_air_time = jp.sum((air_time - 0.1) * first_contact)
+        rew_air_time *= cmd_norm > 0.01  # No reward for zero commands.
+        return rew_air_time
+
+  # Sensor readings.
 
     def get_upvector(self, data: mjx.Data) -> jax.Array:
         return mjx_env.get_sensor_data(self.mj_model, data, UPVECTOR_SENSOR)
