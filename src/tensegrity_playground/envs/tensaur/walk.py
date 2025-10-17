@@ -46,10 +46,11 @@ def default_config() -> config_dict.ConfigDict:
         episode_length=1000,
         Kp=35.0,
         Kd=0.5,
-        action_repeat=10,
+        action_repeat=1,
         action_scale=0.5,
         history_len=1,
         soft_joint_pos_limit_factor=0.95,
+        xml=None,  # 支持从 config 传入 xml_path
         noise_config=config_dict.create(
             level=0.0,  # Set to 0.0 to disable noise.
             scales=config_dict.create(
@@ -64,7 +65,7 @@ def default_config() -> config_dict.ConfigDict:
             cmd=[1.0, 0.0, 0.0],  # [x, y, z] m/s
             scales=config_dict.create(
                 # Tracking
-                tracking_lin_vel=1.0,
+                tracking_lin_vel=2.0,
                 tracking_ang_vel=0.5,       
                 # Base reward.
                 lin_vel_z=-0.5,
@@ -74,7 +75,7 @@ def default_config() -> config_dict.ConfigDict:
                 dof_pos_limits=-1.0,
                 pose=0.5,
                 # Other.
-                termination=-1.0,
+                termination=-10.0,
                 # stand_still=-1.0,
                 # Regularization.
                 torques=-0.0002,
@@ -86,7 +87,7 @@ def default_config() -> config_dict.ConfigDict:
                 feet_slip=-0.1,
                 feet_air_time=0.1,
             ),
-            tracking_sigma=0.25,
+            tracking_sigma=0.5,
             max_foot_height=0.1,
         ),
     )
@@ -108,7 +109,19 @@ class Walk(mjx_env.MjxEnv):
         task_to_xml = {
             "flat_terrain": FLAT_TERRAIN_XML,
         }
-        xml_path = task_to_xml[task].as_posix()
+        
+        # 支持从 config 传入 xml_path
+        cfg_xml = self._config.get("xml", None)
+        if cfg_xml is not None:
+            if hasattr(cfg_xml, "as_posix"):
+                xml_path = epath.Path(cfg_xml).as_posix()
+            else:
+                xml_path = str(cfg_xml)
+        else:
+            default_path = task_to_xml[task]
+            xml_path = default_path.as_posix() if hasattr(default_path, "as_posix") else str(default_path)
+
+        # xml_path = task_to_xml[task].as_posix()
 
         self._mj_model = mujoco.MjModel.from_xml_string(
             epath.Path(xml_path).read_text(),

@@ -45,6 +45,7 @@ import copy
 import tensegrity_playground  # noqa: F401 # pylint:disable=unused-import
 from mujoco_playground import registry
 from mujoco_playground import wrapper
+import json
 
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="jax")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jax")
@@ -149,24 +150,14 @@ def main(cfg: DictConfig):
                 path, params, force=True, save_args=save_args
             )
 
-    # Experiment logging function
+    # 保存最后收到的指标
+    last_metrics = {}
+
+    best_reward = float("-inf")
+    best_step = None
+
+    # 修改进度回调函数
     def progress_fn(num_steps, metrics):
-        # if cfg.progress_bar:
-        #     progress_bar.update(num_steps)
-
-        # if cfg.wandb:
-        #     wandb.log(metrics, step=num_steps)
-
-        # if cfg.tensorboard:
-        #     for key, value in metrics.items():
-        #         writer.add_scalar(key, value, num_steps)
-        #     writer.flush()
-
-        # if cfg.verbose:
-        #     print(
-        #         f"Step {num_steps}: reward={metrics['eval/episode_reward']:.3f}"
-        #     )
-
         if cfg.progress_bar:
             if not hasattr(progress_fn, 'last_step'):
                 progress_fn.last_step = 0
@@ -185,6 +176,58 @@ def main(cfg: DictConfig):
                     log_dict[key] = float(value)
             except (TypeError, ValueError):
                 continue  # 跳过无法转换的metrics
+                
+        # 保存最新的指标(每次都更新)
+        last_metrics.update(log_dict)
+        nonlocal best_reward, best_step
+        cur = log_dict.get("eval/episode_reward", None)
+        if cur is not None:
+            step = int(num_steps)
+            if (cur > best_reward) or (cur == best_reward and (best_step is None or step > best_step)):
+                best_reward, best_step = float(cur), step
+                out = pathlib.Path(cfg.logging_dir) / "metrics_final.json"
+                best_metrics = dict(log_dict)
+                best_metrics["best_step"] = best_step
+                # 立刻覆盖成“当前最优”
+                with open(out, "w") as f:
+                    json.dump(best_metrics, f, indent=2)
+
+    # # Experiment logging function
+    # def progress_fn(num_steps, metrics):
+    #     # if cfg.progress_bar:
+    #     #     progress_bar.update(num_steps)
+
+    #     # if cfg.wandb:
+    #     #     wandb.log(metrics, step=num_steps)
+
+    #     # if cfg.tensorboard:
+    #     #     for key, value in metrics.items():
+    #     #         writer.add_scalar(key, value, num_steps)
+    #     #     writer.flush()
+
+    #     # if cfg.verbose:
+    #     #     print(
+    #     #         f"Step {num_steps}: reward={metrics['eval/episode_reward']:.3f}"
+    #     #     )
+
+    #     if cfg.progress_bar:
+    #         if not hasattr(progress_fn, 'last_step'):
+    #             progress_fn.last_step = 0
+    #         progress_bar.update(num_steps - progress_fn.last_step)
+    #         progress_fn.last_step = num_steps
+
+    #     # 记录所有类型的metrics
+    #     log_dict = {}
+    #     for key, value in metrics.items():
+    #         try:
+    #             if hasattr(value, 'item'):
+    #                 log_dict[key] = float(value.item())
+    #             elif isinstance(value, (int, float)):
+    #                 log_dict[key] = float(value)
+    #             elif hasattr(value, '__float__'):
+    #                 log_dict[key] = float(value)
+    #         except (TypeError, ValueError):
+    #             continue  # 跳过无法转换的metrics
 
         if cfg.wandb:
             wandb.log(log_dict, step=num_steps)
@@ -215,6 +258,30 @@ def main(cfg: DictConfig):
         wrap_env_fn=wrapper.wrap_for_brax_training,
         **cfg.agent,
     )
+
+    # # 在保存前，添加训练相关的元数据
+    # last_metrics.update({
+    #     "training_completed": True,
+    #     # "timestamp": time.time(),
+    #     # "total_steps": cfg.agent.num_timesteps,
+    #     # "environment_id": cfg.environment_id,
+    #     "individual_id": cfg.playground.get("individual_id", "unknown")
+    # })
+
+    # metrics_file = pathlib.Path(cfg.logging_dir) / "metrics_final.json"
+    # with open(metrics_file, 'w') as f:
+    #     json.dump(last_metrics, f, indent=2)
+    # print(f"Final metrics saved at '{metrics_file}'.")
+    mf = pathlib.Path(cfg.logging_dir) / "metrics_final.json"
+    if mf.exists():
+        data = json.loads(mf.read_text())
+        data["training_completed"] = True
+        mf.write_text(json.dumps(data, indent=2))
+    else:
+        # 万一评估没跑到，就用最后一次兜底
+        last_metrics["training_completed"] = True
+        last_metrics["last_metrics"] = "last step"
+        mf.write_text(json.dumps(last_metrics, indent=2))
 
     if cfg.wandb:
         wandb.finish()
@@ -256,8 +323,8 @@ def main(cfg: DictConfig):
 
         frames = env.render(
             traj,
-            height=480,
-            width=640,
+            height=600,
+            width=800,
             scene_option=scene_option,
             camera=cfg.render_camera,
         )

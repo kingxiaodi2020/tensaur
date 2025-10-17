@@ -1,0 +1,104 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=32G
+#SBATCH -J worker
+#SBATCH -p gpu              # 如分区名不同，稍后再改
+#SBATCH --gpus=1
+#SBATCH -t 08:00:00
+#SBATCH -o logs/workers/%x-%A_%a.out
+
+set -euo pipefail
+
+# === 任务入参（后续用 job array 自动注入）===
+INDIV_IDX="${INDIV_IDX:-${SLURM_ARRAY_TASK_ID:-0}}"
+MANIFEST_PATH="${MANIFEST_PATH:-manifest.json}"
+RUN_TAG="${RUN_TAG:-debug}"
+export INDIV_IDX MANIFEST_PATH RUN_TAG 
+
+echo "[worker] INDIV_IDX=$INDIV_IDX"
+echo "[worker] MANIFEST_PATH=$MANIFEST_PATH"
+echo "[worker] RUN_TAG=$RUN_TAG"
+
+# === 环境（按你集群改）===
+module purge
+module load gcc openmpi
+module load gcc cuda/12.1.1
+module load python/3.10.4
+unset LD_LIBRARY_PATH
+source "$HOME/venvs/tensaur/bin/activate"
+
+export MUJOCO_GL=egl
+export DISPLAY=                           # 置空，避免 GUI 尝试
+export XLA_PYTHON_CLIENT_PREALLOCATE=false 
+
+# 回到提交目录
+cd "$SLURM_SUBMIT_DIR"
+mkdir -p logs
+
+# === 源码快照（避免并发互相影响，可省略）===
+SNAP_DIR="/scratch/izar/$USER/tensaur_snap/${RUN_TAG}-${SLURM_JOB_ID}"
+mkdir -p "$SNAP_DIR"
+rsync -a --delete --exclude ".git" --exclude "wandb" --exclude "logs" --exclude "__pycache__" \
+  "$SLURM_SUBMIT_DIR"/ "$SNAP_DIR"/
+cd "$SNAP_DIR"
+export PYTHONPATH="$SNAP_DIR:${PYTHONPATH:-}"
+
+# === ensure ffmpeg for mediapy ===
+FFMPEG_BIN=$(python - <<'PY'
+try:
+    import imageio_ffmpeg as m
+    print(m.get_ffmpeg_exe())
+except Exception:
+    print("")
+PY
+)
+if [ -n "$FFMPEG_BIN" ] && [ -x "$FFMPEG_BIN" ]; then
+  export IMAGEIO_FFMPEG_EXE="$FFMPEG_BIN"        # mediapy/imageio 会优先读这个
+  mkdir -p "$SNAP_DIR/bin"
+  ln -sf "$FFMPEG_BIN" "$SNAP_DIR/bin/ffmpeg"    # 保底：提供一个名为 ffmpeg 的可执行
+  export PATH="$SNAP_DIR/bin:$(dirname "$FFMPEG_BIN"):$PATH"
+  echo "[worker] ffmpeg set to: $FFMPEG_BIN"
+  "$FFMPEG_BIN" -version | head -1 || true
+else
+  echo "[worker] WARNING: imageio-ffmpeg not found; videos may fail"
+fi
+
+# === 该个体的独立输出目录 ===
+# ✅ 直接用 manifest 所在目录作为本代目录
+MANIFEST_DIR="$(dirname "$MANIFEST_PATH")"
+CKPT_DIR="${MANIFEST_DIR}/ind_${INDIV_IDX}"
+mkdir -p "$CKPT_DIR"
+export CKPT_DIR
+
+python -V
+nvidia-smi || true
+
+# === 运行单个体训练 ===
+python - << 'PY'
+import json, os
+from pathlib import Path
+
+from src.tensegrity_playground.envs.evolution.single_trainer import SingleIndividualTrainer
+from src.tensegrity_playground.envs.evolution.individual import Individual
+
+INDIV_IDX = int(os.environ["INDIV_IDX"])
+MANIFEST_PATH = Path(os.environ["MANIFEST_PATH"]).resolve()
+CKPT_DIR = Path(os.environ["CKPT_DIR"]).resolve()
+
+data = json.loads(MANIFEST_PATH.read_text())
+entry = data["individuals"][INDIV_IDX]
+
+ind = Individual(individual_id=entry["individual_id"], genes=entry["genes"])
+trainer = SingleIndividualTrainer()
+
+fitness = trainer.train_individual(ind)   # 期待内部写 metrics_final.json，并返回 eval/episode_reward
+summary = {
+    "individual_id": ind.individual_id,
+    "fitness": float(fitness),
+    "ckpt_dir": str(CKPT_DIR),
+}
+(CKPT_DIR / "fitness.json").write_text(json.dumps(summary, indent=2))
+print("[worker] Done:", summary)
+PY

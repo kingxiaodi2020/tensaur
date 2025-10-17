@@ -3,7 +3,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=32G
-#SBATCH -J tens4_8000_10_rk_Arep10
+#SBATCH -J te3_5000_10_r0.5s3_v2_t10_implicit
 #SBATCH -p gpu
 #SBATCH --gpus=2
 #SBATCH -t 24:00:00
@@ -30,7 +30,7 @@ echo "PWD(after cd)=$(pwd)"
 
 # 产物目录
 mkdir -p logs
-CKPT_DIR="/scratch/izar/$USER/tensaur_temp/${SLURM_JOB_NAME}-${SLURM_JOB_ID}"
+CKPT_DIR="/scratch/izar/$USER/tune_vel/${SLURM_JOB_NAME}-${SLURM_JOB_ID}"
 mkdir -p "$CKPT_DIR"
 echo "CKPT_DIR=$CKPT_DIR"
 

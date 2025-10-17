@@ -1,6 +1,8 @@
 from etils import epath
 import numpy as np
 from dm_control import mjcf
+import copy
+from pathlib import Path
 
 ROOT_PATH = epath.Path(__file__).parent
 
@@ -11,7 +13,7 @@ DEFAULT_CONFIG = {
     "output_path": ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml",
     "sim": {
         "timestep": 0.002,
-        "integrator": "RK4",
+        "integrator": "implicitfast",  # 改为 "rk4" 或 "euler"
         "iterations": 100,
         "ls_iterations": 50,
     },
@@ -47,13 +49,13 @@ DEFAULT_CONFIG = {
                 "density": 1750.0,  
                 "rgba": [0.8, 0.6, 0.4, 1],
                 "group": 1,
-                "conaffinity": 0,
+                "conaffinity": 1,
             },
         },
         "lateral_tendon": {
             "tendon": {
-                "stiffness": 8000,
-                "damping": 10,
+                "stiffness": 3890.959979873107,
+                "damping": 	12.933675958388895,
                 "frictionloss": 0.02,
                 "width": 0.002,
                 "rgba": [1.0, 0.0, 0.0, 0.5],
@@ -61,8 +63,8 @@ DEFAULT_CONFIG = {
         },
         "diagonal_tendon": {
             "tendon": {
-                "stiffness": 8000,
-                "damping": 10,
+                "stiffness": 3890.959979873107,
+                "damping": 12.933675958388895,
                 "frictionloss": 0.02,
                 "width": 0.002,
                 "rgba": [0.0, 0.0, 1.0, 0.5],
@@ -76,15 +78,15 @@ DEFAULT_CONFIG = {
         "foot_radius": 0.023,       # 足端球半径
     },
     "spine": {
-        "num_segments": 3,
+        "num_segments": 4,
         "segment_spacing": 0.06,
         "initial_z": 0.38,  # 腿变长后抬高初始质心高度以避免穿地 0.474 站直 0.38
         "alpha": np.pi / 4,
         "alpha_length": 0.08,
         "beta": np.pi / 4,
         "beta_length": 0.06,
-        "lateral_pretension": 1,
-        "diagonal_pretension": 1,
+        "lateral_pretension": 0.90,
+        "diagonal_pretension": 0.90,
 
         # 固定身长配置（默认对齐 go1 髋-髋间距）
         "enforce_fixed_length": True,
@@ -283,23 +285,37 @@ def add_tetrahedral_spine(model, config):
             )
             body.add("site", name=f"{name}_{key}", pos=endpoint, size=[0.005])
 
+
+    def world_site_pos(body_name: str, site_suffix: str):
+        body = model.find("body", body_name)
+        site = model.find("site", f"{body_name}_{site_suffix}")
+        return np.array(body.pos, dtype=float) + np.array(site.pos, dtype=float)
+    
     # 椎体之间的“横向”和“对角”拉索
     for i in range(num_segments - 1):
         for site in ["a1", "a2", "b1", "b2"]:
+            pA = world_site_pos(f"vertebrae_{i}", site)
+            pB = world_site_pos(f"vertebrae_{i + 1}", site)
+            L0 = float(np.linalg.norm(pB - pA))
+
             tendon = model.tendon.add(
                 "spatial",
                 name=f"lat_{site}_{i}",
                 dclass="lateral_tendon",
-                springlength=[segment_spacing * config["spine"]["lateral_pretension"]],
+                springlength=[float(L0 * lateral_pretension)],
             )
             tendon.add("site", site=f"vertebrae_{i}_{site}")
             tendon.add("site", site=f"vertebrae_{i + 1}_{site}")
 
         for a, b in [("a1", "b1"), ("a2", "b2"), ("a1", "b2"), ("a2", "b1")]:
+            pA = world_site_pos(f"vertebrae_{i}", a)
+            pB = world_site_pos(f"vertebrae_{i + 1}", b)
+            L0 = float(np.linalg.norm(pB - pA))
             tendon = model.tendon.add(
                 "spatial",
                 name=f"diag_{a}{b}_{i}",
                 dclass="diagonal_tendon",
+                springlength=[float(L0 * diagonal_pretension)],
             )
             tendon.add("site", site=f"vertebrae_{i}_{a}")
             tendon.add("site", site=f"vertebrae_{i + 1}_{b}")
@@ -563,6 +579,49 @@ def generate_quadruped_from_config(config: dict):
     with open(path, "w") as file:
         file.write(model.to_xml_string())
 
+def build_config_from_genes(genes: dict, individual_id: int, output_path: str | None = None) -> dict:
+    cfg = copy.deepcopy(DEFAULT_CONFIG)
+    
+    # 脊椎段数
+    cfg["spine"]["num_segments"] = int(genes.get("num_segments", 3))
+    
+    # 脊椎几何参数
+    if 'segment_spacing' in genes:
+        cfg["spine"]["segment_spacing"] = float(genes["segment_spacing"])
+    
+    if 'alpha' in genes:
+        cfg["spine"]["alpha"] = float(genes["alpha"])
+    
+    if 'alpha_length' in genes:
+        cfg["spine"]["alpha_length"] = float(genes["alpha_length"])
+    
+    if 'beta' in genes:
+        cfg["spine"]["beta"] = float(genes["beta"])
+    
+    if 'beta_length' in genes:
+        cfg["spine"]["beta_length"] = float(genes["beta_length"])
+
+    # 全局回退（若没给细分键）
+    base_stiff = float(genes.get("stiffness", 3000))
+    base_damp  = float(genes.get("damping", 10))
+
+    lat_stiff = float(genes.get("lateral_stiffness", base_stiff))
+    lat_damp  = float(genes.get("lateral_damping", base_damp))
+    diag_stiff = float(genes.get("diagonal_stiffness", base_stiff))
+    diag_damp  = float(genes.get("diagonal_damping", base_damp))
+
+    cfg["defaults"]["lateral_tendon"]["tendon"]["stiffness"] = float(lat_stiff)
+    cfg["defaults"]["lateral_tendon"]["tendon"]["damping"] = float(lat_damp)
+    cfg["defaults"]["diagonal_tendon"]["tendon"]["stiffness"] = float(diag_stiff)
+    cfg["defaults"]["diagonal_tendon"]["tendon"]["damping"] = float(diag_damp)
+
+    if output_path is not None:
+        cfg["output_path"] = Path(output_path)
+    else:
+        xml_filename = f"tensegrity_{individual_id}.xml"
+        cfg["output_path"] = ROOT_PATH / "xmls" / xml_filename
+
+    return cfg
 
 if __name__ == "__main__":
     generate_quadruped_from_config(DEFAULT_CONFIG)
