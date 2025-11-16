@@ -13,6 +13,10 @@ class Individual:
     generation: int = 0
     training_completed: bool = False
     xml_path: Optional[str] = None
+    # for NSGA-II
+    objectives: Optional[list[float]] = None
+    rank: Optional[int] = None
+    crowding_distance: float = 0.0
     
     def __post_init__(self):
         """验证基因参数"""
@@ -29,9 +33,24 @@ class Individual:
             'fitness': self.fitness,
             'generation': self.generation,
             'training_completed': self.training_completed,
-            'xml_path': self.xml_path
+            'xml_path': self.xml_path,
+
+            # for NSGA-II
+            'objectives': self.objectives,
+            'rank': self.rank,
+            'crowding_distance': self.crowding_distance,
         }
+
+    def __hash__(self):
+        """使 Individual 可以作为字典键"""
+        return hash(self.individual_id)
     
+    def __eq__(self, other):
+        """判断两个个体是否相同"""
+        if not isinstance(other, Individual):
+            return False
+        return self.individual_id == other.individual_id    
+      
     @classmethod
     def from_dict(cls, data: Dict) -> 'Individual':
         """从字典创建个体"""

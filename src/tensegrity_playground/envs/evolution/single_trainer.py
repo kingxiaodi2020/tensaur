@@ -12,6 +12,29 @@ from .individual import Individual
 from .path_manager import get_path_manager
 from tensegrity_playground.envs.tensaur.generate_go1 import build_config_from_genes, generate_quadruped_from_config
 
+MULTITASK_PRESETS = [
+    ("forward",
+     {"reward_config": {
+        "scales": {"reach": 80.0, "action": -0.001},
+        "cmd":    [1.0, 0.0, 0.0]
+     }},
+     "forward"),
+
+    ("slope",
+     {"reward_config": {
+        "scales": {"success": 20.0, "reach": 120.0, "action": -0.001},
+        "goal":   {"use_goal": True, "tolerance": 0.08}
+     }},
+     "slope"),
+
+    ("leap",
+     {"reward_config": {
+        "scales": {"feet_clearance": -2.0, "action": -0.001, "success": 10.0},
+        "goal":   {"tolerance": 0.05}
+     }},
+     "leap"),
+]
+
 class SingleIndividualTrainer:
     """训练单个个体的训练器"""
     
@@ -106,77 +129,332 @@ class SingleIndividualTrainer:
         self.logging_dir = logdir
         return logdir
     
-    def train_individual(self, individual: Individual) -> float:
-        """训练单个个体并返回适应度"""
-        print(f"start training individual {individual.individual_id}")
+    def _set_task_logging_dir(self, individual_id: str, task_name: str) -> Path:
+        """
+        为某个子任务设置独立的 logging 根目录：<logs>/ind_<id>/<task>/
+        create_training_config(...) 会把 self.logging_dir 写入 checkpoint_directory。
+        """
+        base = self._make_logging_dir(individual_id)   # 你已有：返回 <logs>/ind_<id>
+        task_dir = base / task_name
+        task_dir.mkdir(parents=True, exist_ok=True)
+        self.logging_dir = task_dir
+        return task_dir
+
+    def _merge_playground_overrides(self, config_path: Path, reward_overrides: dict):
+        """
+        将 reward_overrides 合并到配置的 playground.reward_config 下。
+        支持 keys: scales / goal / cmd / command / max_foot_height / tracking_sigma
+        - 对 'cmd'（速度指令）做逐元素原地赋值，避免 ListConfig <- list 的类型冲突。
+        """
+        import yaml
+        from pathlib import Path
+
+        with open(config_path, "r") as f:
+            cfg = yaml.safe_load(f)
+
+        pg = cfg.setdefault("playground", {})
+        rc = pg.setdefault("reward_config", {})
+
+        # 清理误写在顶层的 key（避免 config locked 错误）
+        for k in ("goal", "command"):
+            if k in pg:
+                del pg[k]
+
+        def _merge_mapping(dst: dict, src: dict):
+            for k, v in src.items():
+                if isinstance(v, dict):
+                    dst.setdefault(k, {})
+                    _merge_mapping(dst[k], v)
+                else:
+                    dst[k] = v
+
+        # 先处理整体 reward_config 覆盖（若调用方直接传了这一层）
+        if "reward_config" in reward_overrides and isinstance(reward_overrides["reward_config"], dict):
+            _merge_mapping(rc, reward_overrides["reward_config"])
+
+        # 个别键的兜底（如果调用方不是放在 reward_config 下）
+        mapping = {"command": "cmd"}
+        for k, v in reward_overrides.items():
+            kk = mapping.get(k, k)
+            if kk == "reward_config":
+                continue
+            if kk in ("scales", "goal", "max_foot_height", "tracking_sigma"):
+                if isinstance(v, dict):
+                    rc.setdefault(kk, {})
+                    _merge_mapping(rc[kk], v)
+                else:
+                    rc[kk] = v
+            elif kk in ("cmd",):
+                # ★ 关键修复：对 ListConfig 做“逐元素原地赋值”
+                if "cmd" in rc and isinstance(v, (list, tuple)):
+                    try:
+                        for i, val in enumerate(v):
+                            rc["cmd"][i] = float(val)
+                    except Exception:
+                        # 若逐元素失败，再退而求其次整体覆盖
+                        rc["cmd"] = list(v)
+                else:
+                    rc["cmd"] = list(v) if isinstance(v, (list, tuple)) else v
+            else:
+                # 忽略未知键，避免新增字段触发锁定错误
+                pass
+
+        with open(config_path, "w") as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
+
+    
+    # def train_individual(self, individual: Individual, mode: str = "single_objective") -> Dict:
+    #     """
+    #     训练单个个体并返回训练结果
         
+    #     Args:
+    #         individual: 待训练个体
+    #         mode: "single_objective" 或 "multi_objective"
+        
+    #     Returns:
+    #         包含训练结果的字典
+    #     """
+    #     print(f"start training individual {individual.individual_id} (mode={mode})")
+        
+    #     try:
+    #         # 1. 准备XML文件
+    #         xml_path = self.prepare_individual_xml(individual)
+    #         print(f"  XML文件已生成: {xml_path}")
+
+    #         self.logging_dir = self._make_logging_dir(individual.individual_id)
+
+    #         # 2. 创建训练配置
+    #         config_path = self.create_training_config(individual, xml_path)
+    #         print(f"  配置文件已创建: {config_path}")
+            
+    #         # 3. 运行训练
+    #         config_name = Path(config_path).stem
+    #         script_path = self.path_manager.get_script_path("train_ppo.py")
+    #         config_dir = self.path_manager.config_dir
+            
+    #         cmd = [
+    #             sys.executable, str(script_path),
+    #             "--config-path", str(config_dir),
+    #             "--config-name", config_name,
+    #         ]
+
+    #         print(f"  执行命令: {' '.join(cmd)}")
+            
+    #         result = subprocess.run(
+    #             cmd,
+    #             text=True,
+    #             cwd=str(self.path_manager.project_root)
+    #         )
+            
+    #         # 4. 获取并解析 metrics
+    #         metrics_file = self._find_metrics_in_logdir()
+    #         if not metrics_file:
+    #             metrics_file = self.path_manager.get_metrics_file(individual.individual_id)
+
+    #         # 5. 根据模式提取不同的结果
+    #         if result.returncode == 0 and metrics_file.exists():
+    #             with open(metrics_file, 'r') as f:
+    #                 metrics = json.load(f)
+    #             results = self._extract_results(metrics, mode)
+    #         else:
+    #             if result.stdout:
+    #                 print("  未找到 metrics_final.json 或训练返回码非0，回退解析 stdout")
+    #                 # results = self._extract_results_from_output(result.stdout, mode)
+    #             else:
+    #                 print("  无可用数据，使用默认惩罚值")
+    #                 results = self._get_default_results(mode)
+
+    #         # 6. 更新 individual 状态
+    #         individual.training_completed = (result.returncode == 0)
+            
+    #         if mode == "single_objective":
+    #             individual.fitness = results["fitness"]
+    #             print(f"  ✓ 训练完成，fitness: {results['fitness']:.2f}")
+    #         else:  # multi_objective
+    #             individual.objectives = results["objectives"]
+    #             print(f"  ✓ 训练完成，objectives: {results['objectives']}")
+
+    #         return results
+
+    #     except Exception as e:
+    #         print(f"  ✗ 训练出错: {e}")
+    #         import traceback
+    #         traceback.print_exc()
+            
+    #         individual.training_completed = False
+    #         results = self._get_default_results(mode)
+            
+    #         if mode == "single_objective":
+    #             individual.fitness = results["fitness"]
+    #         else:
+    #             individual.objectives = results["objectives"]
+            
+    #         return results
+
+    def train_individual(self, individual: Individual, mode: str = "single_objective") -> Dict:
+        """
+        训练单个个体并返回训练结果
+
+        Args:
+            individual: 待训练个体
+            mode: "single_objective" 或 "multi_objective"
+
+        Returns:
+            包含训练结果的字典
+        """
+        print(f"start training individual {individual.individual_id} (mode={mode})")
+
         try:
-            # 1. 准备XML文件
+            # 1) 准备基础 XML（平地）；先用这份打通流程
             xml_path = self.prepare_individual_xml(individual)
             print(f"  XML文件已生成: {xml_path}")
 
-            self.logging_dir = self._make_logging_dir(individual.individual_id)
+            # =========== 单目标：维持你原有流程 ===========
+            if mode == "single_objective":
+                # 日志根：<logs>/ind_<id>/
+                self.logging_dir = self._make_logging_dir(individual.individual_id)
 
-            # 2. 创建训练配置
-            config_path = self.create_training_config(individual, xml_path)
-            print(f"  配置文件已创建: {config_path}")
-            
-            # 3. 运行训练
-            config_name = Path(config_path).stem
-            script_path = self.path_manager.get_script_path("train_ppo.py")
-            config_dir = self.path_manager.config_dir
-            
-            cmd = [
-                sys.executable, str(script_path),
-                "--config-path", str(config_dir),
-                "--config-name", config_name,
-            ]
+                # 生成训练配置
+                config_path = self.create_training_config(individual, xml_path)
+                print(f"  配置文件已创建: {config_path}")
 
-            print(f"  执行命令: {' '.join(cmd)}")
-            
-            # 运行训练（从项目根目录运行）
-            result = subprocess.run(
-                cmd,
-                text=True,
-                cwd=str(self.path_manager.project_root)  # 确保从项目根目录运行
-            )
-            
-            # 获取metrics文件
-            metrics_file = self._find_metrics_in_logdir()
-            if not metrics_file:
-                metrics_file = self.path_manager.get_metrics_file(individual.individual_id)
+                # 执行训练
+                config_name = Path(config_path).stem
+                script_path = self.path_manager.get_script_path("train_ppo.py")
+                config_dir = self.path_manager.config_dir
+                cmd = [
+                    sys.executable, str(script_path),
+                    "--config-path", str(config_dir),
+                    "--config-name", config_name,
+                ]
+                print(f"  执行命令: {' '.join(cmd)}")
+                result = subprocess.run(cmd, text=True, cwd=str(self.path_manager.project_root))
 
-            fitness = 0.0
-            if result.returncode == 0 and metrics_file.exists():
-                with open(metrics_file, 'r') as f:
-                    metrics = json.load(f)
-                fitness = metrics.get('eval/episode_reward', 0.0)
-            else:
-                if result.stdout:
-                    print("  未找到 metrics_final.json 或训练返回码非0，回退解析 stdout")
-                    fitness = self.extract_fitness_from_output(result.stdout)
+                # 找 metrics
+                metrics_file = self._find_metrics_in_logdir()
+                if not metrics_file:
+                    metrics_file = self.path_manager.get_metrics_file(individual.individual_id)
+
+                # 解析结果
+                if result.returncode == 0 and metrics_file.exists():
+                    with open(metrics_file, 'r') as f:
+                        metrics = json.load(f)
+                    results = self._extract_results(metrics, mode)   # 沿用你已有逻辑
                 else:
-                    print("  无可用 stdout，适应度置 0.0")
-                    fitness = 0.0
+                    if hasattr(result, "stdout") and result.stdout:
+                        print("  未找到 metrics_final.json 或训练返回码非0，回退默认惩罚")
+                    results = self._get_default_results(mode)
 
-            individual.fitness = fitness
-            individual.training_completed = True if result.returncode == 0 else False
-                
-            if result.returncode == 0:
-                print(f"  ✓ 训练完成，适应度: {fitness:.2f}")
-            else:
-                print(f"  ✗ 训练失败，返回码: {result.returncode}，适应度: {fitness:.2f}")
+                individual.training_completed = (result.returncode == 0)
+                individual.fitness = results["fitness"]
+                print(f"  ✓ 训练完成，fitness: {results['fitness']:.2f}")
+                return results
 
-            return fitness
+            # =========== 多目标：串行 3 个子任务 ===========
+            objectives = []
+
+            for task_name, reward_overrides, _xml_tag in MULTITASK_PRESETS:
+                print(f"\n>>> 子任务: {task_name}")
+
+                # 2) 为该任务设置独立日志目录：<logs>/ind_<id>/<task>/
+                self._set_task_logging_dir(individual.individual_id, task_name)
+
+                # 3) 创建训练配置（写入 checkpoint_directory=self.logging_dir, xml=xml_path）
+                #    现在先共用同一份平地 XML；后续你给每个任务生成专属 XML 时，把 xml_path 换掉即可
+                config_path = self.create_training_config(individual, xml_path)
+                print(f"  [{task_name}] 配置文件: {config_path}")
+
+                # 4) 合并该任务的奖励/命令覆盖
+                self._merge_playground_overrides(config_path, reward_overrides)
+
+                # 5) 运行训练（每个子任务都会新建一个 run 子目录，从 0 步开始）
+                config_name = Path(config_path).stem
+                script_path = self.path_manager.get_script_path("train_ppo.py")
+                config_dir = self.path_manager.config_dir
+                cmd = [
+                    sys.executable, str(script_path),
+                    "--config-path", str(config_dir),
+                    "--config-name", config_name,
+                ]
+                print(f"  [{task_name}] 执行命令: {' '.join(cmd)}")
+                result = subprocess.run(cmd, text=True, cwd=str(self.path_manager.project_root))
+
+                # 6) 获取并解析该任务的 KPI（先用 eval/episode_reward）
+                #    _find_metrics_in_logdir() 会在当前 self.logging_dir 下找最新 run
+                if result.returncode == 0:
+                    metrics_file = self._find_metrics_in_logdir()
+                else:
+                    metrics_file = None
+
+                if result.returncode == 0 and metrics_file and metrics_file.exists():
+                    with open(metrics_file, "r") as f:
+                        metrics = json.load(f)
+                    # 这里直接取一个数作为该任务的目标；你也可以写成 _extract_results(...)
+                    a_task = float(metrics.get("eval/episode_reward", 0.0))
+                    print(f"  [{task_name}] KPI = {a_task:.3f}")
+                    objectives.append(a_task)
+                else:
+                    print(f"  [{task_name}] 训练失败或无 metrics，记 0.0")
+                    objectives.append(0.0)
+
+            # 7) 汇总与回填
+            individual.training_completed = True
+            individual.objectives = objectives
+            results = {"objectives": objectives}
+            print(f"\n  ✓ 多任务训练完成，objectives: {objectives}")
+            return results
 
         except Exception as e:
             print(f"  ✗ 训练出错: {e}")
             import traceback
             traceback.print_exc()
-            individual.fitness = 0.0
-            individual.training_completed = False
-            return 0.0
 
+            individual.training_completed = False
+            results = self._get_default_results(mode)
+            if mode == "single_objective":
+                individual.fitness = results["fitness"]
+            else:
+                individual.objectives = results["objectives"]
+            return results
+
+    def _extract_results(self, metrics: Dict, mode: str) -> Dict:
+        """从 metrics 中提取结果"""
+        if mode == "single_objective":
+            # 单目标：返回综合适应度
+            fitness = metrics.get('eval/episode_reward', 0.0)
+            return {"fitness": float(fitness)}
+        
+        else:  # multi_objective
+            # 多目标：提取多个独立目标
+            vel_x = metrics.get('eval/episode_actual_vel_x', -1e9)
+            vel_y = metrics.get('eval/episode_actual_vel_y', -1e9)
+            
+            # 目标3：能量效率（可选）
+            # energy_efficiency = -metrics.get('eval/energy_consumption', 1e9)
+            
+        return {
+            "objectives": [float(vel_x), float(vel_y)],
+            "vel_x": float(vel_x),  # 额外保存便于调试
+            "vel_y": float(vel_y)   # 额外保存便于调试
+        }
+        
+    def _get_default_results(self, mode: str) -> Dict:
+        """获取默认惩罚值"""
+        if mode == "single_objective":
+            return {"fitness": 0.0}
+        else:
+            return {"objectives": [0.0, 0.0]}  # 根据目标数量调整
+        
+    def _find_metrics_in_logdir(self) -> Path | None:
+        root = Path(self.logging_dir)
+        # 1) 先看根目录
+        p = root / "metrics_final.json"
+        if p.exists():
+            return p
+        # 2) 再在一层子目录里找（train_ppo 用时间戳建子目录）
+        candidates = sorted(root.glob("*/metrics_final.json"), key=lambda x: x.stat().st_mtime, reverse=True)
+        return candidates[0] if candidates else None
+            
     def cleanup(self):
         """清理临时文件"""
         # 清理生成的个体配置文件
@@ -193,61 +471,61 @@ class SingleIndividualTrainer:
             shutil.rmtree(temp_dir)
             print(f"✓ 清理训练目录: {temp_dir}")
     
-    def extract_fitness_from_output(self, output: str) -> float:
-        """从训练输出中提取适应度"""
-        lines = output.split('\n')
+    # def extract_fitness_from_output(self, output: str) -> float:
+    #     """从训练输出中提取适应度"""
+    #     lines = output.split('\n')
         
-        # 存储关键指标的最新值
-        metrics = {
-            'eval_episode_reward': [],
-            'eval_episode_actual_vel_x': [],
-            'eval_sps': [],
-            'episode_reward': [],  # 备用指标
-        }
+    #     # 存储关键指标的最新值
+    #     metrics = {
+    #         'eval_episode_reward': [],
+    #         'eval_episode_actual_vel_x': [],
+    #         'eval_sps': [],
+    #         'episode_reward': [],  # 备用指标
+    #     }
         
-        for line in lines:
-            if 'Step' in line and ':' in line:
-                # 解析类似 "Step 12345: {'eval/episode_reward': 1234.56, ...}" 的行
-                try:
-                    # 提取字典部分
-                    if '{' in line and '}' in line:
-                        dict_str = line[line.find('{'):line.rfind('}')+1]
-                        # 安全地评估字典
-                        import ast
-                        step_metrics = ast.literal_eval(dict_str)
+    #     for line in lines:
+    #         if 'Step' in line and ':' in line:
+    #             # 解析类似 "Step 12345: {'eval/episode_reward': 1234.56, ...}" 的行
+    #             try:
+    #                 # 提取字典部分
+    #                 if '{' in line and '}' in line:
+    #                     dict_str = line[line.find('{'):line.rfind('}')+1]
+    #                     # 安全地评估字典
+    #                     import ast
+    #                     step_metrics = ast.literal_eval(dict_str)
                         
-                        # 提取关键指标
-                        for key, value in step_metrics.items():
-                            if 'eval/episode_reward' in key:
-                                metrics['eval_episode_reward'].append(float(value))
-                            elif 'eval/episode_actual_vel_x' in key:
-                                metrics['eval_episode_actual_vel_x'].append(float(value))
-                            elif 'eval_sps' in key:
-                                metrics['eval_sps'].append(float(value))
-                            elif 'episode_reward' in key and 'eval' not in key:
-                                metrics['episode_reward'].append(float(value))
+    #                     # 提取关键指标
+    #                     for key, value in step_metrics.items():
+    #                         if 'eval/episode_reward' in key:
+    #                             metrics['eval_episode_reward'].append(float(value))
+    #                         elif 'eval/episode_actual_vel_x' in key:
+    #                             metrics['eval_episode_actual_vel_x'].append(float(value))
+    #                         elif 'eval_sps' in key:
+    #                             metrics['eval_sps'].append(float(value))
+    #                         elif 'episode_reward' in key and 'eval' not in key:
+    #                             metrics['episode_reward'].append(float(value))
                                 
-                except (ValueError, SyntaxError, KeyError):
-                    # 如果解析失败，尝试正则表达式
-                    import re
+    #             except (ValueError, SyntaxError, KeyError):
+    #                 # 如果解析失败，尝试正则表达式
+    #                 import re
                     
-                    # 寻找 eval/episode_reward
-                    reward_match = re.search(r'eval/episode_reward[\'"]?\s*:\s*([0-9.-]+)', line)
-                    if reward_match:
-                        metrics['eval_episode_reward'].append(float(reward_match.group(1)))
+    #                 # 寻找 eval/episode_reward
+    #                 reward_match = re.search(r'eval/episode_reward[\'"]?\s*:\s*([0-9.-]+)', line)
+    #                 if reward_match:
+    #                     metrics['eval_episode_reward'].append(float(reward_match.group(1)))
                     
-                    # 寻找 eval/episode_actual_vel_x
-                    vel_match = re.search(r'eval/episode_actual_vel_x[\'"]?\s*:\s*([0-9.-]+)', line)
-                    if vel_match:
-                        metrics['eval_episode_actual_vel_x'].append(float(vel_match.group(1)))
+    #                 # 寻找 eval/episode_actual_vel_x
+    #                 vel_match = re.search(r'eval/episode_actual_vel_x[\'"]?\s*:\s*([0-9.-]+)', line)
+    #                 if vel_match:
+    #                     metrics['eval_episode_actual_vel_x'].append(float(vel_match.group(1)))
                     
-                    # 寻找 eval_sps
-                    sps_match = re.search(r'eval_sps[\'"]?\s*:\s*([0-9.-]+)', line)
-                    if sps_match:
-                        metrics['eval_sps'].append(float(sps_match.group(1)))
+    #                 # 寻找 eval_sps
+    #                 sps_match = re.search(r'eval_sps[\'"]?\s*:\s*([0-9.-]+)', line)
+    #                 if sps_match:
+    #                     metrics['eval_sps'].append(float(sps_match.group(1)))
         
-        # 计算综合适应度分数
-        fitness = self._calculate_composite_fitness(metrics)
+        # # 计算综合适应度分数
+        # fitness = self._calculate_composite_fitness(metrics)
         
         # print(f"    提取的指标:")
         # if metrics['eval_episode_reward']:
@@ -258,76 +536,67 @@ class SingleIndividualTrainer:
         #     print(f"      eval_sps: {metrics['eval_sps'][-3:]} (最后3个)")
         # print(f"      综合适应度: {fitness}")
         
-        return fitness
+        # return fitness
 
-    def _calculate_composite_fitness(self, metrics: dict) -> float:
-        """计算综合适应度分数"""
+    # def _calculate_composite_fitness(self, metrics: dict) -> float:
+    #     """计算综合适应度分数"""
         
-        # 基础适应度：优先使用 eval_episode_reward (范围: 500~1500)
-        base_fitness = 0.0
-        if metrics['eval_episode_reward']:
-            # 使用最后几次评估的平均值，更稳定
-            recent_rewards = metrics['eval_episode_reward'][-5:]  # 最后5次评估
-            base_fitness = sum(recent_rewards) / len(recent_rewards)
-            print(f"      使用 eval_episode_reward，最后5次平均: {base_fitness:.2f}")
-        else:
-            # 只有当没有 eval 数据时才使用训练数据作为备用
-            if metrics['episode_reward']:
-                recent_rewards = metrics['episode_reward'][-10:]
-                base_fitness = sum(recent_rewards) / len(recent_rewards)
-                print(f"      使用 episode_reward 作为备用，最后10次平均: {base_fitness:.2f}")
-            else:
-                print(f"      警告：没有找到任何 reward 数据！")
+    #     # 基础适应度：优先使用 eval_episode_reward (范围: 500~1500)
+    #     base_fitness = 0.0
+    #     if metrics['eval_episode_reward']:
+    #         # 使用最后几次评估的平均值，更稳定
+    #         recent_rewards = metrics['eval_episode_reward'][-5:]  # 最后5次评估
+    #         base_fitness = sum(recent_rewards) / len(recent_rewards)
+    #         print(f"      使用 eval_episode_reward，最后5次平均: {base_fitness:.2f}")
+    #     else:
+    #         # 只有当没有 eval 数据时才使用训练数据作为备用
+    #         if metrics['episode_reward']:
+    #             recent_rewards = metrics['episode_reward'][-10:]
+    #             base_fitness = sum(recent_rewards) / len(recent_rewards)
+    #             print(f"      使用 episode_reward 作为备用，最后10次平均: {base_fitness:.2f}")
+    #         else:
+    #             print(f"      警告：没有找到任何 reward 数据！")
 
-        # 速度奖励：eval_episode_actual_vel_x (范围: ~1000，表示累计1000个环境的速度)
-        vel_bonus = 0.0
-        if metrics['eval_episode_actual_vel_x']:
-            recent_vels = metrics['eval_episode_actual_vel_x'][-5:]
-            avg_vel = sum(recent_vels) / len(recent_vels)
+    #     # 速度奖励：eval_episode_actual_vel_x (范围: ~1000，表示累计1000个环境的速度)
+    #     vel_bonus = 0.0
+    #     if metrics['eval_episode_actual_vel_x']:
+    #         recent_vels = metrics['eval_episode_actual_vel_x'][-5:]
+    #         avg_vel = sum(recent_vels) / len(recent_vels)
             
-            # 将累计速度转换为单个环境的平均速度
-            avg_vel_per_env = avg_vel / 1000  # 假设是1000个环境的累计
-            target_vel_per_env = 1.0  # 目标：单个环境1 m/s
+    #         # 将累计速度转换为单个环境的平均速度
+    #         avg_vel_per_env = avg_vel / 1000  # 假设是1000个环境的累计
+    #         target_vel_per_env = 1.0  # 目标：单个环境1 m/s
             
-            # 速度越接近目标，奖励越高，但权重适中
-            vel_error = abs(avg_vel_per_env - target_vel_per_env)
-            # 调整权重：最大给200分的速度奖励，与reward同等重要
-            vel_bonus = max(0, 200 * (1 - vel_error))
+    #         # 速度越接近目标，奖励越高，但权重适中
+    #         vel_error = abs(avg_vel_per_env - target_vel_per_env)
+    #         # 调整权重：最大给200分的速度奖励，与reward同等重要
+    #         vel_bonus = max(0, 200 * (1 - vel_error))
             
-            print(f"      累计速度: {avg_vel:.1f}, 平均速度: {avg_vel_per_env:.3f} m/s, 目标: {target_vel_per_env} m/s, 速度奖励: {vel_bonus:.2f}")
-        else:
-            print(f"      警告：没有找到速度数据！")
+    #         print(f"      累计速度: {avg_vel:.1f}, 平均速度: {avg_vel_per_env:.3f} m/s, 目标: {target_vel_per_env} m/s, 速度奖励: {vel_bonus:.2f}")
+    #     else:
+    #         print(f"      警告：没有找到速度数据！")
         
-        # 效率奖励：eval_sps (范围: 2k~3k)
-        efficiency_bonus = 0.0
-        if metrics['eval_sps']:
-            recent_sps = metrics['eval_sps'][-3:]
-            avg_sps = sum(recent_sps) / len(recent_sps)
+    #     # 效率奖励：eval_sps (范围: 2k~3k)
+    #     efficiency_bonus = 0.0
+    #     if metrics['eval_sps']:
+    #         recent_sps = metrics['eval_sps'][-3:]
+    #         avg_sps = sum(recent_sps) / len(recent_sps)
             
-            # SPS越高，效率奖励越高，但权重较小
-            # 2000 SPS = 20分, 3000 SPS = 30分
-            efficiency_bonus = min(50, avg_sps / 100)  # 最大50分的效率奖励
-            print(f"      平均SPS: {avg_sps:.0f}, 效率奖励: {efficiency_bonus:.2f}")
+    #         # SPS越高，效率奖励越高，但权重较小
+    #         # 2000 SPS = 20分, 3000 SPS = 30分
+    #         efficiency_bonus = min(50, avg_sps / 100)  # 最大50分的效率奖励
+    #         print(f"      平均SPS: {avg_sps:.0f}, 效率奖励: {efficiency_bonus:.2f}")
         
-        # 综合适应度权重分配：
-        # - base_fitness: 500~1500 (主要，占大头)
-        # - vel_bonus: 0~200 (重要，确保速度正确)  
-        # - efficiency_bonus: 0~50 (次要，训练效率)
-        total_fitness = base_fitness + vel_bonus + efficiency_bonus
+    #     # 综合适应度权重分配：
+    #     # - base_fitness: 500~1500 (主要，占大头)
+    #     # - vel_bonus: 0~200 (重要，确保速度正确)  
+    #     # - efficiency_bonus: 0~50 (次要，训练效率)
+    #     total_fitness = base_fitness + vel_bonus + efficiency_bonus
         
-        print(f"      适应度组成: base={base_fitness:.2f} + vel={vel_bonus:.2f} + eff={efficiency_bonus:.2f} = {total_fitness:.2f}")
+    #     print(f"      适应度组成: base={base_fitness:.2f} + vel={vel_bonus:.2f} + eff={efficiency_bonus:.2f} = {total_fitness:.2f}")
         
-        return max(0.0, total_fitness)  # 确保非负
+    #     return max(0.0, total_fitness)  # 确保非负
     
-    def _find_metrics_in_logdir(self) -> Path | None:
-        root = Path(self.logging_dir)
-        # 1) 先看根目录
-        p = root / "metrics_final.json"
-        if p.exists():
-            return p
-        # 2) 再在一层子目录里找（train_ppo 用时间戳建子目录）
-        candidates = sorted(root.glob("*/metrics_final.json"), key=lambda x: x.stat().st_mtime, reverse=True)
-        return candidates[0] if candidates else None
 
 
     # import subprocess

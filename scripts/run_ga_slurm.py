@@ -115,13 +115,13 @@ def build_next_manifest(run_tag: str, gen_idx: int, summary_rows):
             })()
         )
 
-    gene_ranges = get_gene_ranges(mode="base")
+    gene_ranges = get_gene_ranges(mode="medium")
     ga = GeneticAlgorithm(
         population_size=len(summary_rows),
         gene_ranges=gene_ranges,
-        mutation_rate=0.30,
-        crossover_rate=0.80,
-        elitism_ratio=0.10,
+        mutation_rate=0.80,
+        crossover_rate=0.00,
+        elitism_ratio=0.1,
     )
     next_pop = ga.create_next_generation(pop)
 
@@ -146,7 +146,7 @@ def main():
     gen0_dir = Path(f"/scratch/izar/{os.environ['USER']}/ga_runs/{args.run_tag}/gen_000")
     man = gen0_dir / "manifest.json"
     if not man.exists():
-        gene_ranges = get_gene_ranges(mode="base")
+        gene_ranges = get_gene_ranges(mode="medium")
         individuals = make_initial_population(args.pop_size, gene_ranges)
         man = write_manifest(args.run_tag, 0, individuals)
         print("[init] wrote", man)

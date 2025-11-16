@@ -11,7 +11,7 @@ class GeneticAlgorithm:
                  population_size: int,
                  gene_ranges: Dict,
                  mutation_rate: float = 0.15,
-                 crossover_rate: float = 0.8,
+                 crossover_rate: float = 0.1,
                  elitism_ratio: float = 0.2):
         
         self.population_size = population_size
@@ -25,7 +25,7 @@ class GeneticAlgorithm:
         print(f"   种群大小: {population_size}")
         print(f"   变异率: {mutation_rate}")
         print(f"   交叉率: {crossover_rate}")
-        print(f"   精英比例: {elitism_ratio}")
+        # print(f"   精英比例: {elitism_ratio}")
 
     def crossover(self, parent1: Individual, parent2: Individual) -> Tuple[Individual, Individual]:
         """交叉操作 - 单点交叉"""
@@ -74,12 +74,15 @@ class GeneticAlgorithm:
                 
                 if gene_name == 'num_segments':
                     # 整数基因：随机选择邻近值
-                    current_val = int(value)
-                    choices = [max(min_val, current_val - 1), current_val, min(max_val, current_val + 1)]
-                    mutated_genes[gene_name] = random.choice(choices)
+                    mutation_strength = 1  # 邻近值范围
+                    new_value = int(round(value + random.gauss(0, mutation_strength)))
+                    mutated_genes[gene_name] = int(np.clip(new_value, min_val, max_val))
+                    # current_val = int(value)
+                    # choices = [max(min_val, current_val - 1), current_val, min(max_val, current_val + 1)]
+                    # mutated_genes[gene_name] = random.choice(choices)
                 else:
                     # 浮点数基因：高斯变异
-                    mutation_strength = (max_val - min_val) * 0.2  # 20%的范围作为变异强度
+                    mutation_strength = (max_val - min_val) * 0.02  # 10%的范围作为变异强度
                     new_value = value + random.gauss(0, mutation_strength)
                     mutated_genes[gene_name] = np.clip(new_value, min_val, max_val)
         
@@ -101,9 +104,9 @@ class GeneticAlgorithm:
             self.generation_counter + 1
         )
     
-    def tournament_selection(self, population: Population, tournament_size: int = 3) -> Individual:
+    def tournament_selection(self, population: Population, tournament_size: int = 2) -> Individual:
         """锦标赛选择"""
-        evaluated_individuals = population.get_evaluated_individuals()
+        evaluated_individuals = population.get_evaluated_individuals_ga()
         if len(evaluated_individuals) < tournament_size:
             tournament_size = len(evaluated_individuals)
         
@@ -112,7 +115,7 @@ class GeneticAlgorithm:
     
     def create_next_generation(self, current_population: Population) -> Population:
         """创建下一代种群"""
-        if not current_population.is_fully_evaluated():
+        if not current_population.is_fully_evaluated_ga():
             raise ValueError("当前种群还未完全评估，无法创建下一代")
         
         self.generation_counter += 1
@@ -122,7 +125,7 @@ class GeneticAlgorithm:
             self.generation_counter
         )
         
-        evaluated_individuals = current_population.get_evaluated_individuals()
+        evaluated_individuals = current_population.get_evaluated_individuals_ga()
         
         # 1. 精英保留
         elite_count = max(1, int(self.population_size * self.elitism_ratio))

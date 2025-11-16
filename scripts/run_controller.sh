@@ -50,3 +50,8 @@ echo "Controller started. Log: $LOG  PID: $(cat logs/controller/ga_${RUN_TAG}.pi
 
 # 3) 实时看日志
 tail -f "$LOG"
+
+# 4) 如果要停止 controller
+pgrep -fl "python .*scripts/run_ga_slurm.py"  
+kill $(cat "logs/controller/ga_${RUN_TAG}.pid")
+kill 3116500 2>/dev/null

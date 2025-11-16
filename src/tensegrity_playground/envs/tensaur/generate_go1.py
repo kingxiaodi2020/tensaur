@@ -8,9 +8,13 @@ ROOT_PATH = epath.Path(__file__).parent
 
 # 以 go1 的髋-髋间距作为“身长”
 GO1_HIP_TO_HIP_LENGTH = 2 * 0.1881  # = 0.3762 m
+visual = True # for visual debug use
+mode = "uneven"  # "plane" | "uneven"
+fixed_shoulder = True  # if lock hip_roll joints
 
 DEFAULT_CONFIG = {
     "output_path": ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml",
+    "fixed_shoulder": fixed_shoulder,
     "sim": {
         "timestep": 0.002,
         "integrator": "implicitfast",  # 改为 "rk4" 或 "euler"
@@ -23,7 +27,7 @@ DEFAULT_CONFIG = {
             "joint": {
                 "type": "hinge",
                 "limited": True,
-                "damping": 0.1,
+                "damping": 0.5,
                 "armature": 0.005,
                 "frictionloss": 0.001,
             },
@@ -49,13 +53,13 @@ DEFAULT_CONFIG = {
                 "density": 1750.0,  
                 "rgba": [0.8, 0.6, 0.4, 1],
                 "group": 1,
-                "conaffinity": 1,
+                "conaffinity": 0,
             },
         },
         "lateral_tendon": {
             "tendon": {
-                "stiffness": 3890.959979873107,
-                "damping": 	12.933675958388895,
+                "stiffness": 5000,
+                "damping": 	5,
                 "frictionloss": 0.02,
                 "width": 0.002,
                 "rgba": [1.0, 0.0, 0.0, 0.5],
@@ -63,8 +67,8 @@ DEFAULT_CONFIG = {
         },
         "diagonal_tendon": {
             "tendon": {
-                "stiffness": 3890.959979873107,
-                "damping": 12.933675958388895,
+                "stiffness": 3000,
+                "damping": 5,
                 "frictionloss": 0.02,
                 "width": 0.002,
                 "rgba": [0.0, 0.0, 1.0, 0.5],
@@ -78,13 +82,13 @@ DEFAULT_CONFIG = {
         "foot_radius": 0.023,       # 足端球半径
     },
     "spine": {
-        "num_segments": 4,
-        "segment_spacing": 0.06,
-        "initial_z": 0.38,  # 腿变长后抬高初始质心高度以避免穿地 0.474 站直 0.38
+        "num_segments": 2,
+        "segment_spacing": 0.1,
+        "initial_z": 0.6,  # 腿变长后抬高初始质心高度以避免穿地 0.474 站直 0.38
         "alpha": np.pi / 4,
         "alpha_length": 0.08,
         "beta": np.pi / 4,
-        "beta_length": 0.06,
+        "beta_length": 0.08,
         "lateral_pretension": 0.90,
         "diagonal_pretension": 0.90,
 
@@ -95,12 +99,25 @@ DEFAULT_CONFIG = {
     },
     "actuation": {
         # 参考 go1 的关节范围与力矩限制（位置型执行器的 forcerange）
-        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-35.55, 35.55]},
-        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7, 23.7]},
-        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55, 35.55]},
+        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7*0.6, 23.7*0.6]},    #-0.863, 0.863
+        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7*0.6, 23.7*0.6]},
+        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55*0.6, 35.55*0.6]},
     },
     "legs": {"z_offset": -0.025},
-    "keyframe": {"leg_qpos": [-0.06, 0.9, -1.55, 0.06, 0.9, -1.55]},
+    "keyframe": {"leg_qpos": [-0, 0.9, -1.55, 0, 0.9, -1.55]},    #[-0.06, 0.9, -1.55, 0.06, 0.9, -1.55]
+
+    "terrain": {
+        "mode": mode,   # "plane" | "uneven"
+        # mode="uneven"：
+        "hfield_png": "terrain_go1_11m_gradual2.png",
+        "rx": 7.5,         # half length （m）  -> (-1,10)
+        "ry": 1.5,         # half width（m）  -> 总宽 3 m
+        "hz": 0.40,        # vertical height scale（m）
+        "base": 0.001,     # base height offset（m）
+        "center_x": 5.8,   # center x position（m）
+        "friction": [1.0, 0.1, 0.01],
+        "use_checker_material": True,
+    },
 }
 
 
@@ -173,6 +190,40 @@ def add_terrain(model, config):
     )
     return model
 
+def add_uneven_terrain(model, config):
+    """Adds uneven terrain using a heightfield PNG."""
+    tcfg = config.get("terrain", {})
+    png_path = tcfg.get("hfield_png")
+    if not png_path:
+        raise ValueError("Heightfield PNG is required for uneven terrain.")
+
+    # Resolve the full path of the PNG file
+    p = epath.Path(png_path)
+    if not p.is_absolute():
+        alt = ROOT_PATH / "xmls" / png_path
+        alt2 = ROOT_PATH / png_path
+        p = alt if alt.exists() else alt2 if alt2.exists() else None
+        if not p:
+            raise FileNotFoundError(f"Heightfield PNG not found: {png_path}")
+
+    rx, ry, hz, base = float(tcfg.get("rx", 5.5)), float(tcfg.get("ry", 1.5)), float(tcfg.get("hz", 0.30)), float(tcfg.get("base", 0.005))
+    cx, fric = float(tcfg.get("center_x", 4.8)), tcfg.get("friction", [1.0, 0.1, 0.01])
+    use_mat = bool(tcfg.get("use_checker_material", True))
+
+    # Add skybox texture
+    model.asset.add("texture", name="skybox", type="skybox", builtin="gradient", rgb1=[0.4, 0.6, 0.8], rgb2=[0, 0, 0], width=800, height=800, mark="random", markrgb=[1, 1, 1])
+
+    # Add ground material if enabled
+    if use_mat:
+        model.asset.add("texture", name="tex_ground", type="2d", builtin="checker", width=256, height=256, rgb1=[0.75, 0.75, 0.75], rgb2=[0.65, 0.65, 0.65])
+        model.asset.add("material", name="mat_ground", texture="tex_ground", texrepeat=[30, 6], rgba=[1, 1, 1, 1])
+
+    # Add heightfield asset
+    model.asset.add("hfield", name="uneven_terrain", file=str(p), size=[rx, ry, hz, base])
+
+    # Add terrain geometry
+    kwargs = {"material": "mat_ground"} if use_mat else {}
+    model.worldbody.add("geom", name="terrain", type="hfield", hfield="uneven_terrain", size=[rx, ry, hz], pos=[cx, 0, 0], friction=fric, **kwargs)
 
 def add_tetrahedral_spine(model, config):
     from math import sin, cos
@@ -225,7 +276,7 @@ def add_tetrahedral_spine(model, config):
         front_extra = extra_total / 2.0
         rear_extra = extra_total / 2.0
 
-    imu_x = front_extra if (enforce and extra_total > tol) else 0.0
+    imu_x = 0.5 * (fixed_len - chain_len) if enforce else 0.0
     # 为了整体关于 x=0 对称，链段中心放在 x=0
     # 链起点、终点（不含延长段）分别为 +chain_len/2 与 -chain_len/2
     # 前/后延长段分别从这两端继续向外延伸 front_extra 和 rear_extra
@@ -272,9 +323,19 @@ def add_tetrahedral_spine(model, config):
                 xyaxes=[0, -1, 0, 1, 0, 2],
                 mode="trackcom",
             )
+
+            body.add(
+                "camera", 
+                name="overview",
+                pos=[-1, 0, 2],  # 居中高位
+                xyaxes=[0, -1, 0, 0.5, 0, 0.5],  # 向下俯视
+                mode="trackcom",
+                fovy=70,
+            )
+
         body.add("joint", name=f"joint_{name}", type="free")
         if i == 0:
-            body.add("site", name="com_vertebrae_1", pos=[imu_x, 0, 0], size=[0.006])
+            body.add("site", name="com_vertebrae_1", pos=[imu_x, 0, 0], size=[0.02])
 
         for key, endpoint in endpoints.items():
             body.add(
@@ -391,6 +452,10 @@ def add_leg(parent_body, prefix, base_pos):
     hip_pitch_range = act_cfg["hip_pitch"]["ctrlrange"]
     knee_range = act_cfg["knee"]["ctrlrange"]
 
+    # lock hip_roll joint if specified
+    if DEFAULT_CONFIG.get("fixed_shoulder", False):
+        hip_roll_range = [0.0, 1e-20]
+
     # 髋外展段（沿 x 轴）
     root = parent_body.add("body", name=f"{prefix}_leg", pos=base_pos)
     root.add(
@@ -398,6 +463,7 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_hip_roll",
         axis=[1, 0, 0],
         range=hip_roll_range,
+        frictionloss=0.3,  # 外展关节摩擦
     )
 
     root.add(
@@ -414,6 +480,7 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_hip_pitch",
         axis=[0, 1, 0],
         range=hip_pitch_range,
+        frictionloss=0.3,  # 髋俯仰关节摩擦
     )
 
     hip.add(
@@ -430,6 +497,7 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_knee",
         axis=[0, 1, 0],
         range=knee_range,
+        frictionloss=1.0,  # 膝关节摩擦最大
     )
 
     knee.add(
@@ -437,7 +505,7 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_shin_geom",
         fromto=[0, 0, 0, 0, 0, -shin_len],
         dclass="leg_geom",
-        conaffinity=1,
+        conaffinity=0,
     )
 
     # 足端
@@ -456,17 +524,28 @@ def add_leg(parent_body, prefix, base_pos):
 
 def add_actuation(model, config):
     act_cfg = config["actuation"]
+    lock_hip_roll = config.get("fixed_shoulder", False)
 
     for leg in ["fr", "fl", "rr", "rl"]:
         for joint_name in ["hip_roll", "hip_pitch", "knee"]:
             cfg = act_cfg[joint_name]
-            model.actuator.add(
-                "position",
-                name=f"{leg}_{joint_name}",
-                joint=f"{leg}_{joint_name}",
-                ctrlrange=cfg["ctrlrange"],
-                forcerange=cfg.get("forcerange", None),
-            )
+
+            if joint_name == "hip_roll" and lock_hip_roll:
+                model.actuator.add(
+                    "position",
+                    name=f"{leg}_{joint_name}",
+                    joint=f"{leg}_{joint_name}",
+                    ctrlrange=[0.0, 1e-20],
+                    forcerange=[0.0, 0.0],
+                )
+            else:
+                model.actuator.add(
+                    "position",
+                    name=f"{leg}_{joint_name}",
+                    joint=f"{leg}_{joint_name}",
+                    ctrlrange=cfg["ctrlrange"],
+                    forcerange=cfg.get("forcerange", None),
+                )
 
 
 def add_sensors(model, config):
@@ -550,34 +629,96 @@ def add_sensors(model, config):
 
 
 def generate_keyframe(model, config):
-    num_segments = config["spine"]["num_segments"]
+    n = config["spine"]["num_segments"]
     spacing = config["spine"]["segment_spacing"]
     z = config["spine"]["initial_z"]
     leg_q = config["keyframe"]["leg_qpos"]
 
-    qpos, ctrl = [], []
-    for i in range(num_segments):
-        qpos.extend([-i * spacing, 0, z, 1, 0, 0, 0])  # 自由体位姿：位置先放 0（由仿真稳定后决定）
-        if i == 0 or i == num_segments - 1:
+    chain_len = max(0.0, (n - 1) * spacing)
+
+    qpos = []
+    for i in range(n):
+        x_i = chain_len/2.0 - i*spacing         # ★ 用这个，而不是 -i*spacing
+        qpos.extend([x_i, 0, z, 1, 0, 0, 0])
+        if i == 0 or i == n - 1:
             qpos.extend(leg_q)
+
     ctrl = np.array(leg_q * 2)
     model.keyframe.add("key", name="stable_pose", qpos=np.array(qpos), ctrl=ctrl)
 
 
-def generate_quadruped_from_config(config: dict):
+# 在 generate_rod.py 中，生成XML时就固定了目标位置
+def add_target_visualization(model, config, target_distance_bl=15.0, body_length=GO1_HIP_TO_HIP_LENGTH, tolearance=0.1):
+    target_x = target_distance_bl * body_length  # 固定在 15*0.3762 = 5.643m 处
+    model.worldbody.add(
+        "geom",
+        name="target_marker0",
+        type="sphere",
+        size=[tolearance],
+        pos=[0.0, 0.0, config["spine"]["initial_z"]-0.02],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+    model.worldbody.add(
+        "geom",
+        name="target_marker1",
+        type="sphere",
+        size=[tolearance],
+        pos=[3, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )    
+
+    model.worldbody.add(
+        "geom",
+        name="target_marker2",
+        type="sphere",
+        size=[tolearance],
+        pos=[5, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )    
+
+    model.worldbody.add(
+        "geom",
+        name="target_marker3",
+        type="sphere",
+        size=[tolearance],
+        pos=[8, 0.0, config["spine"]["initial_z"]-0.02],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+def generate_quadruped_from_config(config: dict, vis=visual):
     model = generate_root(config)
-    add_terrain(model, config)
+    
+    terrain_mode = config.get("terrain", {}).get("mode", "plane")
+    if terrain_mode == "uneven":
+        add_uneven_terrain(model, config)
+    else:
+        add_terrain(model, config)
+        
     add_tetrahedral_spine(model, config)
     add_actuation(model, config)
     add_sensors(model, config)
     generate_keyframe(model, config)
 
+    if vis:
+        add_target_visualization(model, config, target_distance_bl=15.0, body_length=GO1_HIP_TO_HIP_LENGTH, tolearance=0.02)
+    
     path = config.get(
         "output_path", ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml"
     )
     path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 写入临时文件
+    xml_string = model.to_xml_string()
+    
+    # 如果使用不平地形，处理文件引用
+    if terrain_mode == "uneven":
+        import re
+        # 将所有带哈希的 PNG 文件名替换为简单文件名
+        xml_string = re.sub(r'file="([^"]+)-[a-f0-9]{40}\.png"', r'file="\1.png"', xml_string)
+    
     with open(path, "w") as file:
-        file.write(model.to_xml_string())
+        file.write(xml_string)
 
 def build_config_from_genes(genes: dict, individual_id: int, output_path: str | None = None) -> dict:
     cfg = copy.deepcopy(DEFAULT_CONFIG)

@@ -6,7 +6,7 @@
 #SBATCH -J worker
 #SBATCH -p gpu              # 如分区名不同，稍后再改
 #SBATCH --gpus=1
-#SBATCH -t 08:00:00
+#SBATCH -t 24:00:00
 #SBATCH -o logs/workers/%x-%A_%a.out
 
 set -euo pipefail
@@ -76,29 +76,45 @@ python -V
 nvidia-smi || true
 
 # === 运行单个体训练 ===
+# 在最后添加训练调用
 python - << 'PY'
-import json, os
+import json, os, sys
 from pathlib import Path
 
-from src.tensegrity_playground.envs.evolution.single_trainer import SingleIndividualTrainer
-from src.tensegrity_playground.envs.evolution.individual import Individual
+# 添加项目路径
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from tensegrity_playground.envs.evolution.single_trainer import SingleIndividualTrainer
+from tensegrity_playground.envs.evolution.individual import Individual
 
 INDIV_IDX = int(os.environ["INDIV_IDX"])
 MANIFEST_PATH = Path(os.environ["MANIFEST_PATH"]).resolve()
 CKPT_DIR = Path(os.environ["CKPT_DIR"]).resolve()
 
+# 读取 manifest
 data = json.loads(MANIFEST_PATH.read_text())
 entry = data["individuals"][INDIV_IDX]
 
-ind = Individual(individual_id=entry["individual_id"], genes=entry["genes"])
-trainer = SingleIndividualTrainer()
+# 创建个体
+ind = Individual(
+    individual_id=entry["individual_id"], 
+    genes=entry["genes"],
+    generation=data.get("generation", 0)
+)
 
-fitness = trainer.train_individual(ind)   # 期待内部写 metrics_final.json，并返回 eval/episode_reward
+# ✅ 训练（单目标模式）
+trainer = SingleIndividualTrainer()
+results = trainer.train_individual(ind, mode="single_objective")
+
+# ✅ 保存结果
 summary = {
     "individual_id": ind.individual_id,
-    "fitness": float(fitness),
+    "fitness": results["fitness"],        # 单目标适应度
+    "training_completed": ind.training_completed,
     "ckpt_dir": str(CKPT_DIR),
 }
-(CKPT_DIR / "fitness.json").write_text(json.dumps(summary, indent=2))
-print("[worker] Done:", summary)
-PY
+
+output_file = CKPT_DIR / "fitness.json"
+output_file.write_text(json.dumps(summary, indent=2))
+print(f"[worker] Results saved to {output_file}")
+print(f"[worker] Fitness: {results['fitness']:.2f}")

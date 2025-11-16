@@ -62,18 +62,19 @@ def default_config() -> config_dict.ConfigDict:
             ),
         ),
         reward_config=config_dict.create(
-            cmd=[1.0, 0.0, 0.0],  # [x, y, z] m/s
+            cmd=[0.5, 0.0, 0.0],  # [x, y, z] m/s
             scales=config_dict.create(
                 # Tracking
                 tracking_lin_vel=2.0,
-                tracking_ang_vel=0.5,       
+                tracking_ang_vel=0.5,
+                # forward_progress=2.0,       
                 # Base reward.
-                lin_vel_z=-0.5,
-                ang_vel_xy=-0.05,
-                orientation=-5.0,
+                # lin_vel_z=-0.5,
+                # ang_vel_xy=-0.05,
+                # orientation=-1,
                 # Other
                 dof_pos_limits=-1.0,
-                pose=0.5,
+                # pose=0.5,
                 # Other.
                 termination=-10.0,
                 # stand_still=-1.0,
@@ -82,10 +83,10 @@ def default_config() -> config_dict.ConfigDict:
                 action_rate=-0.01,
                 energy=-0.001,
                 # Feet.
-                feet_clearance=-2.0,
-                feet_height=-0.2,
-                feet_slip=-0.1,
-                feet_air_time=0.1,
+                # feet_clearance=-2.0,
+                # feet_height=-0.2,
+                # feet_slip=-0.1,
+                # feet_air_time=0.1,
             ),
             tracking_sigma=0.5,
             max_foot_height=0.1,
@@ -122,10 +123,28 @@ class Walk(mjx_env.MjxEnv):
             xml_path = default_path.as_posix() if hasattr(default_path, "as_posix") else str(default_path)
 
         # xml_path = task_to_xml[task].as_posix()
+        
+        # Read XML and replace relative paths with absolute paths
+        xml_content = epath.Path(xml_path).read_text()
+        xml_dir = epath.Path(xml_path).parent
+        
+        # 替换地形文件路径为绝对路径
+        # Replace all PNG file references with absolute paths
+        import re
+        def replace_png_path(match):
+            filename = match.group(1)
+            full_path = xml_dir / filename
+            if full_path.exists():
+                return f'file="{full_path.as_posix()}"'
+            return match.group(0)  # Keep original if file doesn't exist
 
-        self._mj_model = mujoco.MjModel.from_xml_string(
-            epath.Path(xml_path).read_text(),
-        )
+        xml_content = re.sub(r'file="([^"]+\.png)"', replace_png_path, xml_content)
+
+        self._mj_model = mujoco.MjModel.from_xml_string(xml_content)
+
+        # self._mj_model = mujoco.MjModel.from_xml_string(
+        #     epath.Path(xml_path).read_text(),
+        # )
         self._mj_model.opt.timestep = self._config.sim_dt
 
         # Modify PD gains.
@@ -260,6 +279,7 @@ class Walk(mjx_env.MjxEnv):
             "feet_air_time": jp.zeros(4),
             "last_contact": jp.zeros(4, dtype=bool),
             "swing_peak": jp.zeros(4),
+            "max_x": 0.0
         }
 
         metrics = {}
@@ -268,6 +288,7 @@ class Walk(mjx_env.MjxEnv):
         metrics["swing_peak"] = jp.zeros(())
         metrics["actual_vel_x"] = jp.zeros(())
         metrics["actual_vel_y"] = jp.zeros(())
+        metrics["max_x"] = jp.zeros(())
 
         obs = self._get_obs(data, info)
         reward, done = jp.zeros(2)
@@ -307,9 +328,11 @@ class Walk(mjx_env.MjxEnv):
             k: v * self._config.reward_config.scales[k] 
             for k, v in rewards.items()
         }
-        reward = sum(rewards.values()) 
-
-        state.info["actual_vel"] = self.get_local_linvel(data)  #data.cvel[self._torso_body_id][3:]
+        reward = sum(rewards.values()) * self.dt
+        
+        current_x =self.get_position(data)[0]
+        state.info["max_x"] = jp.maximum(state.info["max_x"], current_x)
+        state.info["actual_vel"] = self.get_global_linvel(data)  #data.cvel[self._torso_body_id][3:]
         state.info["last_last_act"] = state.info["last_act"] 
         state.info["last_act"] = action
         state.info["feet_air_time"] *= ~contact
@@ -321,6 +344,7 @@ class Walk(mjx_env.MjxEnv):
         state.metrics["swing_peak"] = jp.mean(state.info["swing_peak"])
         state.metrics["actual_vel_x"] = state.info["actual_vel"][0]
         state.metrics["actual_vel_y"] = state.info["actual_vel"][1]
+        state.metrics["max_x"] = state.info["max_x"]
 
         done = done.astype(reward.dtype)
         state = state.replace(data=data, obs=obs, reward=reward, done=done)
@@ -428,29 +452,37 @@ class Walk(mjx_env.MjxEnv):
         del metrics  # Unused.
         return {
             "tracking_lin_vel": self._reward_tracking_lin_vel(
-                info["command"], self.get_local_linvel(data)
+                info["command"], self.get_global_linvel(data)
+                # self.get_local_linvel(data)
             ),
             "tracking_ang_vel": self._reward_tracking_ang_vel(
                 info["command"], self.get_gyro(data)
             ),
-            "lin_vel_z": self._cost_lin_vel_z(self.get_global_linvel(data)),
-            "ang_vel_xy": self._cost_ang_vel_xy(self.get_global_angvel(data)),
-            "orientation": self._cost_orientation(self.get_upvector(data)),
+
+            # "orientation": self._cost_orientation(data),
+            # "forward_progress": self._reward_forward_progress(
+            #     self.get_local_linvel(data)
+            # ),
+            # "lin_vel_z": self._cost_lin_vel_z(self.get_global_linvel(data)),
+            # "ang_vel_xy": self._cost_ang_vel_xy(self.get_global_angvel(data)),
+            # "orientation": self._cost_orientation(self.get_upvector(data)),
             "termination": self._cost_termination(done),
-            "pose": self._reward_pose(data.qpos[self._legs_qpos_idx]),
+            # "pose": self._reward_pose(data.qpos[self._legs_qpos_idx]),
             "torques": self._cost_torques(data.actuator_force),
             "action_rate": self._cost_action_rate(
                 action, info["last_act"], info["last_last_act"]
             ),
             "energy": self._cost_energy(data.qvel[self._legs_qvel_idx], data.actuator_force),
-            "feet_slip": self._cost_feet_slip(data, contact, info),
-            "feet_clearance": self._cost_feet_clearance(data),
-            "feet_height": self._cost_feet_height(
-                info["swing_peak"], first_contact, info
-            ),
-            "feet_air_time": self._reward_feet_air_time(
-                info["feet_air_time"], first_contact, info["command"]
-            ),
+            # "feet_slip": self._cost_feet_slip(data, contact, info),
+            # "feet_clearance": self._cost_feet_clearance(data),
+            # "feet_height": self._cost_feet_height(
+            #     info["swing_peak"], first_contact, info
+            # ),
+            # "feet_air_time": self._reward_feet_air_time(
+            #     info["feet_air_time"], first_contact, info["command"]
+            #     #self.get_local_linvel(data)
+            #     #info["command"]
+            # ),
             "dof_pos_limits": self._cost_joint_pos_limits(data.qpos[self._legs_qpos_idx])
         }
 
@@ -474,6 +506,23 @@ class Walk(mjx_env.MjxEnv):
         ang_vel_error = jp.square(commands[2] - ang_vel[2])
         return jp.exp(-ang_vel_error / self._config.reward_config.tracking_sigma)
 
+    def _reward_forward_progress(self, local_vel: jax.Array) -> jax.Array:
+        # 直接取局部 x 方向速度；若想更稳健也可用 (x_{t+1}-x_t)/dt
+        vx = local_vel[0]
+        return vx 
+
+    def _reward_spin_speed(self, global_angvel: jax.Array) -> jax.Array:
+        """鼓励绕Z轴旋转得越快越好"""
+        # global_angvel = [wx, wy, wz]
+        wz = global_angvel[2]
+        return wz  # 或者 jp.square(wz) 更平滑
+
+    def _cost_stay_center(self, pos: jax.Array) -> jax.Array:
+        """惩罚离圆心的偏移"""
+        x, y = pos[0], pos[1]
+        dist_sq = x**2 + y**2
+        return dist_sq
+    
     # Base-related rewards.
 
     def _cost_lin_vel_z(self, global_linvel) -> jax.Array:
@@ -484,9 +533,23 @@ class Walk(mjx_env.MjxEnv):
         # Penalize xy axes base angular velocity.
         return jp.sum(jp.square(global_angvel[:2]))
 
-    def _cost_orientation(self, torso_zaxis: jax.Array) -> jax.Array:
-        # Penalize non flat base orientation.
-        return jp.sum(jp.square(torso_zaxis[:2]))
+    # def _cost_orientation(self, torso_zaxis: jax.Array) -> jax.Array:
+    #     # Penalize non flat base orientation.
+    #     return jp.sum(jp.square(torso_zaxis[:2]))
+
+    def _cost_orientation(self, data: mjx.Data) -> jax.Array:
+        """
+        Penalize the robot's yaw deviation from the global forward direction.
+        """
+        # 获取前向方向向量 [x, y, z]
+        forward_vec = self.get_orientation(data)
+        
+        # 计算 yaw（水平面投影的角度）
+        # 理想前向方向是 [1, 0, 0]（x 轴）
+        yaw = jp.arctan2(forward_vec[1], forward_vec[0])
+        
+        # 惩罚 yaw 偏离 0
+        return jp.square(yaw)
     
     # Energy related rewards.
 

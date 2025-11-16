@@ -11,9 +11,9 @@ class Population:
         self.gene_ranges = gene_ranges
         self.generation = generation
         self.individuals: List[Individual] = []
-        self.best_individual: Optional[Individual] = None
-        self.avg_fitness: float = 0.0
-        self.fitness_history: List[float] = []
+        # self.best_individual: Optional[Individual] = None
+        # self.avg_fitness: float = 0.0
+        # self.fitness_history: List[float] = []
         
     def initialize_random(self):
         """随机初始化种群"""
@@ -48,42 +48,54 @@ class Population:
         """获取未评估的个体"""
         return [ind for ind in self.individuals if not ind.training_completed]
     
-    def get_evaluated_individuals(self) -> List[Individual]:
-        """获取已评估的个体"""
-        return [ind for ind in self.individuals 
-                if ind.training_completed and ind.fitness is not None]
+    # for GA
+    def get_evaluated_individuals_ga(self):
+        return [ind for ind in self.individuals
+                if ind.training_completed and ind.fitness is not None]  
     
-    def update_statistics(self):
-        """更新种群统计信息"""
-        evaluated = self.get_evaluated_individuals()
-        if evaluated:
-            fitnesses = [ind.fitness for ind in evaluated]
-            self.best_individual = max(evaluated, key=lambda x: x.fitness)
-            self.avg_fitness = sum(fitnesses) / len(fitnesses)
-            if self.generation == 0 or not self.fitness_history:
-                self.fitness_history.append(max(fitnesses))
-            else:
-                self.fitness_history.append(max(max(fitnesses), self.fitness_history[-1]))
+    def is_fully_evaluated_ga(self) -> bool:
+        return len(self.get_evaluated_individuals_ga()) == self.size
     
-    def is_fully_evaluated(self) -> bool:
-        """检查是否所有个体都已评估完成"""
-        return len(self.get_evaluated_individuals()) == self.size
-    
-    def get_evaluation_progress(self) -> tuple:
+    def get_evaluation_progress_ga(self) -> tuple:
         """获取评估进度 (已完成, 总数)"""
-        completed = len(self.get_evaluated_individuals())
+        completed = len(self.get_evaluated_individuals_ga())
+        return completed, self.size
+
+    # for NSGA-II
+    def get_evaluated_individuals_moo(self):
+        return [ind for ind in self.individuals
+                if ind.training_completed and ind.objectives is not None]  
+    
+    def is_fully_evaluated_moo(self) -> bool:
+        return len(self.get_evaluated_individuals_moo()) == self.size
+    
+    def get_evaluation_progress_moo(self) -> tuple:
+        """获取评估进度 (已完成, 总数)"""
+        completed = len(self.get_evaluated_individuals_moo())
         return completed, self.size
     
-    def print_statistics(self):
-        """打印统计信息"""
-        evaluated = self.get_evaluated_individuals()
-        if evaluated:
-            fitnesses = [ind.fitness for ind in evaluated]
-            print(f"📊 第{self.generation}代统计:")
-            print(f"   已评估: {len(evaluated)}/{self.size}")
-            print(f"   平均适应度: {sum(fitnesses)/len(fitnesses):.2f}")
-            print(f"   最高适应度: {max(fitnesses):.2f}")
-            print(f"   最低适应度: {min(fitnesses):.2f}")
-            if self.best_individual:
-                print(f"   最优个体: {self.best_individual.individual_id}")
-                print(f"   最优基因: {self.best_individual.genes}")
+    # def update_statistics(self):
+    #     """更新种群统计信息"""
+    #     evaluated = self.get_evaluated_individuals()
+    #     if evaluated:
+    #         fitnesses = [ind.fitness for ind in evaluated]
+    #         self.best_individual = max(evaluated, key=lambda x: x.fitness)
+    #         self.avg_fitness = sum(fitnesses) / len(fitnesses)
+    #         if self.generation == 0 or not self.fitness_history:
+    #             self.fitness_history.append(max(fitnesses))
+    #         else:
+    #             self.fitness_history.append(max(max(fitnesses), self.fitness_history[-1]))    
+    
+    # def print_statistics(self):
+    #     """打印统计信息"""
+    #     evaluated = self.get_evaluated_individuals()
+    #     if evaluated:
+    #         fitnesses = [ind.fitness for ind in evaluated]
+    #         print(f"📊 第{self.generation}代统计:")
+    #         print(f"   已评估: {len(evaluated)}/{self.size}")
+    #         print(f"   平均适应度: {sum(fitnesses)/len(fitnesses):.2f}")
+    #         print(f"   最高适应度: {max(fitnesses):.2f}")
+    #         print(f"   最低适应度: {min(fitnesses):.2f}")
+    #         if self.best_individual:
+    #             print(f"   最优个体: {self.best_individual.individual_id}")
+    #             print(f"   最优基因: {self.best_individual.genes}")
