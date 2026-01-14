@@ -15,7 +15,7 @@ hydra:
 
 # Checkpointing
 checkpointing: true
-checkpoint_directory: /media/di/4441-E469/side
+checkpoint_directory: /media/di/4441-E469/gait_turn
 export_video: true
 render_every: 1
 render_camera: "track"

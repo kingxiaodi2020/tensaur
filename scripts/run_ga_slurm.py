@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import os, json, time, subprocess, argparse, sys
 from pathlib import Path
+from scipy.stats import qmc
+import numpy as np
 
 # === 你项目内的模块 ===
 from tensegrity_playground.envs.evolution.individual import create_random_individual
@@ -23,12 +25,62 @@ def write_manifest(run_tag: str, gen_idx: int, individuals):
     (gen_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
     return gen_dir / "manifest.json"
 
+# def make_initial_population(pop_size: int, gene_ranges):
+#     individuals = []
+#     for i in range(pop_size):
+#         ind_id = f"gen000_idx{i:03d}"
+#         ind = create_random_individual(individual_id=ind_id, generation=0, gene_ranges=gene_ranges)
+#         individuals.append({"individual_id": ind.individual_id, "genes": ind.genes})
+#     return individuals
+
 def make_initial_population(pop_size: int, gene_ranges):
+    """使用Maximin策略创建初始种群，最大化点之间的最小距离"""
+    discrete_genes = {}
+    continuous_genes = {}
+    
+    for gene_name, (min_val, max_val) in gene_ranges.items():
+        if gene_name == 'num_segments':
+            discrete_genes[gene_name] = (min_val, max_val)
+        else:
+            continuous_genes[gene_name] = (min_val, max_val)
+    
     individuals = []
-    for i in range(pop_size):
-        ind_id = f"gen000_idx{i:03d}"
-        ind = create_random_individual(individual_id=ind_id, generation=0, gene_ranges=gene_ranges)
-        individuals.append({"individual_id": ind.individual_id, "genes": ind.genes})
+    
+    if continuous_genes:
+        n_dims = len(continuous_genes)
+        
+        # 生成多个候选样本集，选择最优的
+        best_samples = None
+        best_min_dist = -1
+        
+        for _ in range(10):  # 尝试10次
+            sampler = qmc.LatinHypercube(d=n_dims)
+            candidate = sampler.random(n=pop_size)
+            
+            # 计算最小成对距离
+            from scipy.spatial.distance import pdist
+            min_dist = pdist(candidate).min()
+            
+            if min_dist > best_min_dist:
+                best_min_dist = min_dist
+                best_samples = candidate
+        
+        samples = best_samples
+        gene_names = list(continuous_genes.keys())
+        
+        for i in range(pop_size):
+            ind_id = f"gen000_idx{i:03d}"
+            genes = {}
+            
+            for j, gene_name in enumerate(gene_names):
+                min_val, max_val = continuous_genes[gene_name]
+                genes[gene_name] = float(min_val + samples[i, j] * (max_val - min_val))
+            
+            for gene_name, (min_val, max_val) in discrete_genes.items():
+                genes[gene_name] = int(np.random.randint(int(min_val), int(max_val) + 1))
+            
+            individuals.append({"individual_id": ind_id, "genes": genes})
+    
     return individuals
 
 def submit_array(manifest_path: Path, run_tag: str, partition: str, concurrency: int):
@@ -40,7 +92,7 @@ def submit_array(manifest_path: Path, run_tag: str, partition: str, concurrency:
         "--job-name", f"{run_tag}_gen{manifest_path.parent.name.split('_')[-1]}",
         "--output", "logs/workers/%x-%A_%a.out",
         "--export", f"ALL,MANIFEST_PATH={manifest_path},RUN_TAG={run_tag}",
-        "scripts/run_worker.sh",
+        "scripts/run_ga_worker.sh",
     ]
     print("[submit]", " ".join(cmd))
     out = subprocess.check_output(cmd, text=True).strip()
@@ -100,22 +152,25 @@ def wait_and_collect(manifest_path: Path, timeout_s: int = 21600, poll_s: float 
     return rows
 
 def build_next_manifest(run_tag: str, gen_idx: int, summary_rows):
-    # 还原 Population 并喂给 GA
+    """从当前代的结果构建下一代的 manifest"""
+    
+    # 1. 还原当前代的 Population（用于 GA 算法）
     pop = Population(size=len(summary_rows), gene_ranges=None, generation=gen_idx)
     pop.individuals = []
+    
     for r in summary_rows:
         pop.individuals.append(
-            # Individual 的导入/构造由 Population/GA 内部使用；这里只需 genes/fitness
             type("Tmp", (), {
-                "individual_id": r["individual_id"],
+                "individual_id": r["individual_id"],  # 保留旧ID用于选择
                 "genes": r["genes"],
                 "fitness": float(r["fitness"]),
                 "training_completed": True,
-                "generation": gen_idx
+                "generation": gen_idx  # 当前代
             })()
         )
 
-    gene_ranges = get_gene_ranges(mode="medium")
+    # 2. 执行遗传算法生成下一代
+    gene_ranges = get_gene_ranges(mode="base")
     ga = GeneticAlgorithm(
         population_size=len(summary_rows),
         gene_ranges=gene_ranges,
@@ -125,9 +180,17 @@ def build_next_manifest(run_tag: str, gen_idx: int, summary_rows):
     )
     next_pop = ga.create_next_generation(pop)
 
-    individuals = [{"individual_id": ind.individual_id, "genes": ind.genes}
-                   for ind in next_pop.individuals]
-    return write_manifest(run_tag, gen_idx + 1, individuals)
+    # 3. ✅ 为下一代重新分配 ID
+    next_gen_idx = gen_idx + 1
+    individuals = []
+    for i, ind in enumerate(next_pop.individuals):
+        new_id = f"gen{next_gen_idx:03d}_ind{i:03d}"  # 新的 ID
+        individuals.append({
+            "individual_id": new_id,  # ← 使用新 ID
+            "genes": ind.genes
+        })
+    
+    return write_manifest(run_tag, next_gen_idx, individuals)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -146,7 +209,7 @@ def main():
     gen0_dir = Path(f"/scratch/izar/{os.environ['USER']}/ga_runs/{args.run_tag}/gen_000")
     man = gen0_dir / "manifest.json"
     if not man.exists():
-        gene_ranges = get_gene_ranges(mode="medium")
+        gene_ranges = get_gene_ranges(mode="base")
         individuals = make_initial_population(args.pop_size, gene_ranges)
         man = write_manifest(args.run_tag, 0, individuals)
         print("[init] wrote", man)

@@ -14,6 +14,7 @@ fixed_shoulder = True  # if lock hip_roll joints
 
 DEFAULT_CONFIG = {
     "output_path": ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml",
+    "fixed_shoulder": fixed_shoulder,
     "sim": {
         "timestep": 0.002,
         "integrator": "implicitfast",  # 改为 "rk4" 或 "euler"
@@ -89,9 +90,9 @@ DEFAULT_CONFIG = {
     },
     "actuation": {
         # 参考 go1 的关节范围与力矩限制（位置型执行器的 forcerange）
-        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7*0.6, 23.7*0.6]},    #-0.863, 0.863
-        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7*0.6, 23.7*0.6]},
-        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55*0.6, 35.55*0.6]},
+        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7*0.2, 23.7*0.2]},
+        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7*0.2, 23.7*0.2]},
+        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55*0.2, 35.55*0.2]},
     },
     "legs": {"z_offset": -0.025},
     "keyframe": {"leg_qpos": [-0, 0.9, -1.55, 0, 0.9, -1.55]},    #[-0.06, 0.9, -1.55, 0.06, 0.9, -1.55]
@@ -101,7 +102,7 @@ DEFAULT_CONFIG = {
         # mode="uneven"：
         "hfield_png": "terrain_go1_11m_gradual2.png",
         "rx": 7.5,         # half length （m）  -> (-1,10)
-        "ry": 1.5,         # half width（m）  -> 总宽 3 m
+        "ry": 4,         # half width（m）  -> 总宽 3 m
         "hz": 0.40,        # vertical height scale（m）
         "base": 0.001,     # base height offset（m）
         "center_x": 5.8,   # center x position（m）
@@ -174,7 +175,7 @@ def add_terrain(model, config):
         "geom",
         name="floor",
         type="plane",
-        size=[20, 20, 0.1],
+        size=[50, 50, 0.1],
         pos=[0, 0, 0],
         material="grid",
     )
@@ -334,7 +335,7 @@ def add_leg(parent_body, prefix, base_pos):
     knee_range = act_cfg["knee"]["ctrlrange"]
 
     # lock hip_roll joint if specified
-    if fixed_shoulder:
+    if DEFAULT_CONFIG.get("fixed_shoulder", False):
         hip_roll_range = [0.0, 1e-20]
 
     # 髋外展段（沿 x 轴）
@@ -396,6 +397,7 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_foot_geom",
         type="sphere",
         size=[foot_r],
+        contype=1,
         conaffinity=1,
         dclass="leg_geom",
         friction=[0.8, 0.02, 0.01],
@@ -405,7 +407,7 @@ def add_leg(parent_body, prefix, base_pos):
 
 def add_actuation(model, config):
     act_cfg = config["actuation"]
-    lock_hip_roll = fixed_shoulder
+    lock_hip_roll = config.get("fixed_shoulder", False)
 
     for leg in ["fr", "fl", "rr", "rl"]:
         for joint_name in ["hip_roll", "hip_pitch", "knee"]:
@@ -508,6 +510,14 @@ def add_sensors(model, config):
             site=f"{leg}_foot_site",
         )
 
+    # 每个脚的受力传感器
+    for leg in ["fr", "fl", "rr", "rl"]:
+        sensor.add(
+            "force",
+            name=f"{leg}_foot_force",
+            site=f"{leg}_foot_site",
+        )
+
 
 def generate_keyframe(model, config):
     # 单根棍子模式：只有一个自由体 vertebrae_0
@@ -527,7 +537,7 @@ def generate_keyframe(model, config):
 def add_target_visualization(model, config, target_distance_bl=15.0, body_length=GO1_HIP_TO_HIP_LENGTH, tolearance=0.1):
     target_x = target_distance_bl * body_length  # 固定在 15*0.3762 = 5.643m 处
     model.worldbody.add(
-        "geom",
+        "site",
         name="target_marker0",
         type="sphere",
         size=[tolearance],
@@ -536,35 +546,80 @@ def add_target_visualization(model, config, target_distance_bl=15.0, body_length
     )
 
     model.worldbody.add(
-        "geom",
+        "site",
         name="target_marker1",
-        type="sphere",
-        size=[tolearance],
-        pos=[3, 0.0, 0.3],  # 位置写死在XML中
-        rgba=[1, 0, 0, 0.7],
-    )    
-
-    model.worldbody.add(
-        "geom",
-        name="target_marker2",
         type="sphere",
         size=[tolearance],
         pos=[5, 0.0, 0.3],  # 位置写死在XML中
         rgba=[1, 0, 0, 0.7],
-    )
-    
+    )    
+
     model.worldbody.add(
-        "geom",
+        "site",
+        name="target_marker2",
+        type="sphere",
+        size=[tolearance],
+        pos=[10, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+    model.worldbody.add(
+        "site",
         name="target_marker3",
         type="sphere",
         size=[tolearance],
-        pos=[8, 0.0, config["spine"]["initial_z"]-0.02],  # 位置写死在XML中
+        pos=[15, 0.0, 0.3],  # 位置写死在XML中
         rgba=[1, 0, 0, 0.7],
-    )    
+    )        
+
+    model.worldbody.add(
+        "site",
+        name="target_marker4",
+        type="sphere",
+        size=[tolearance],
+        pos=[20, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+    
+    model.worldbody.add(
+        "site",
+        name="target_marker5",
+        type="sphere",
+        size=[tolearance],
+        pos=[25, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )        
+
+    model.worldbody.add(
+        "site",
+        name="target_marker6",
+        type="sphere",
+        size=[tolearance],
+        pos=[30, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+    model.worldbody.add(
+        "site",
+        name="target_marker7",
+        type="sphere",
+        size=[tolearance],
+        pos=[35, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+    model.worldbody.add(
+        "site",
+        name="target_marker8",
+        type="sphere",
+        size=[tolearance],
+        pos=[40, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
 
 def generate_quadruped_from_config(config: dict, vis=visual):
     model = generate_root(config)
-
+    
     terrain_mode = config.get("terrain", {}).get("mode", "plane")
     if terrain_mode == "uneven":
         add_uneven_terrain(model, config)
@@ -578,7 +633,7 @@ def generate_quadruped_from_config(config: dict, vis=visual):
 
     if vis:
         add_target_visualization(model, config, target_distance_bl=15.0, body_length=GO1_HIP_TO_HIP_LENGTH, tolearance=0.02)
-
+    
     path = config.get(
         "output_path", ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml"
     )

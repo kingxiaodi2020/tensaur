@@ -82,7 +82,7 @@ class GeneticAlgorithm:
                     # mutated_genes[gene_name] = random.choice(choices)
                 else:
                     # 浮点数基因：高斯变异
-                    mutation_strength = (max_val - min_val) * 0.02  # 10%的范围作为变异强度
+                    mutation_strength = (max_val - min_val) * 0.02  # 2%的范围作为变异强度
                     new_value = value + random.gauss(0, mutation_strength)
                     mutated_genes[gene_name] = np.clip(new_value, min_val, max_val)
         

@@ -1,0 +1,230 @@
+<mujoco model="unnamed_model">
+  <compiler angle="radian"/>
+  <option timestep="0.002" integrator="implicitfast" iterations="100" ls_iterations="50"/>
+  <default>
+    <default class="/">
+      <default class="tq1">
+        <joint type="hinge" limited="true" armature="0.0050000000000000001" damping="0.5" frictionloss="0.001"/>
+        <geom contype="0" conaffinity="0" condim="3"/>
+        <position ctrlrange="-2.3559999999999999 2.3559999999999999" forcerange="-50 50" kp="50"/>
+        <default class="vertebra_geom">
+          <geom type="capsule" group="0" size="0.01" rgba="0.80000000000000004 0.59999999999999998 0.40000000000000002 1" density="1750"/>
+        </default>
+        <default class="leg_geom">
+          <geom type="capsule" conaffinity="0" group="1" size="0.02" rgba="0.80000000000000004 0.59999999999999998 0.40000000000000002 1" density="1750"/>
+        </default>
+        <default class="lateral_tendon">
+          <tendon frictionloss="0.02" width="0.002" rgba="1 0 0 0.5" stiffness="5000" damping="5"/>
+        </default>
+        <default class="diagonal_tendon">
+          <tendon frictionloss="0.02" width="0.002" rgba="0 0 1 0.5" stiffness="5000" damping="5"/>
+        </default>
+      </default>
+    </default>
+  </default>
+  <asset>
+    <texture name="skybox" type="skybox" builtin="gradient" rgb1="0.40000000000000002 0.59999999999999998 0.80000000000000004" rgb2="0 0 0" mark="random" markrgb="1 1 1" width="800" height="800"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.10000000000000001 0.20000000000000001 0.29999999999999999" rgb2="0.20000000000000001 0.29999999999999999 0.40000000000000002" mark="edge" markrgb="0.20000000000000001 0.29999999999999999 0.40000000000000002" width="300" height="300"/>
+    <material name="grid" class="/" texture="grid" texrepeat="5 5" texuniform="true" reflectance="0.20000000000000001"/>
+  </asset>
+  <worldbody>
+    <geom name="floor" class="/" type="plane" size="20 20 0.10000000000000001" material="grid" pos="0 0 0"/>
+    <body name="vertebrae_0" childclass="tq1" pos="0.050000000000000003 0 0.59999999999999998">
+      <light name="tracking" mode="trackcom" pos="0 0 3" diffuse="0.59999999999999998 0.59999999999999998 0.59999999999999998"/>
+      <camera name="track" mode="trackcom" pos="0.84599999999999997 -1.3 0.316" xyaxes="0.86599999999999999 0.5 0 -0.17100000000000001 0.29599999999999999 0.93999999999999995"/>
+      <camera name="top" mode="trackcom" pos="-1 0 1" xyaxes="0 -1 0 0.69999999999999996 0 0.69999999999999996"/>
+      <camera name="side" mode="trackcom" pos="0 -1 0.29999999999999999" xyaxes="1 0 0 0 1 2"/>
+      <camera name="back" mode="trackcom" pos="-1 0 0.29999999999999999" xyaxes="0 -1 0 1 0 2"/>
+      <camera name="overview" mode="trackcom" fovy="70" pos="-1 0 2" xyaxes="0 -1 0 0.5 0 0.5"/>
+      <joint name="joint_vertebrae_0" type="free"/>
+      <site name="com_vertebrae_1" size="0.02" pos="0.1381 0 0"/>
+      <geom name="vertebrae_0_a1_geom" class="vertebra_geom" fromto="0 0 0 -0.05656854249492381 0 0.05656854249492381"/>
+      <site name="vertebrae_0_a1" size="0.0050000000000000001" pos="-0.05656854249492381 0 0.05656854249492381"/>
+      <geom name="vertebrae_0_a2_geom" class="vertebra_geom" fromto="0 0 0 -0.05656854249492381 0 -0.05656854249492381"/>
+      <site name="vertebrae_0_a2" size="0.0050000000000000001" pos="-0.05656854249492381 0 -0.05656854249492381"/>
+      <geom name="vertebrae_0_b1_geom" class="vertebra_geom" fromto="0 0 0 0.05656854249492381 0.05656854249492381 0"/>
+      <site name="vertebrae_0_b1" size="0.0050000000000000001" pos="0.05656854249492381 0.05656854249492381 0"/>
+      <geom name="vertebrae_0_b2_geom" class="vertebra_geom" fromto="0 0 0 0.05656854249492381 -0.05656854249492381 0"/>
+      <site name="vertebrae_0_b2" size="0.0050000000000000001" pos="0.05656854249492381 -0.05656854249492381 0"/>
+      <geom name="front_spacer" class="vertebra_geom" type="capsule" fromto="0 0 0 0.1381 0 0"/>
+      <geom name="hind_shoulder" class="leg_geom" fromto="0.1381 -0.12675 -0.025000000000000001 0.1381 0.12675 -0.025000000000000001"/>
+      <geom name="hind_shoulder_attach" class="leg_geom" size="0.0050000000000000001" fromto="0.1381 0 0 0.1381 0 -0.025000000000000001"/>
+      <body name="fr_leg" pos="0.1381 -0.12675 -0.025000000000000001">
+        <joint name="fr_hip_roll" axis="1 0 0" range="0 9.9999999999999995e-21" frictionloss="0.29999999999999999"/>
+        <geom name="fr_hip_roll_geom" class="leg_geom" fromto="0 0 0 -0.050000000000000003 0 0"/>
+        <body name="fr_hip_pitch" pos="-0.050000000000000003 0 0">
+          <joint name="fr_hip_pitch" axis="0 1 0" range="-0.68600000000000005 4.5010000000000003" frictionloss="0.29999999999999999"/>
+          <geom name="fr_hip_pitch_geom" class="leg_geom" fromto="0 0 0 0 0 -0.21299999999999999"/>
+          <body name="fr_knee" pos="0 0 -0.21299999999999999">
+            <joint name="fr_knee" axis="0 1 0" range="-2.8180000000000001 -0.88800000000000001" frictionloss="1"/>
+            <geom name="fr_shin_geom" class="leg_geom" conaffinity="0" fromto="0 0 0 0 0 -0.21299999999999999"/>
+            <body name="fr_foot" pos="0 0 -0.21299999999999999">
+              <geom name="fr_foot_geom" class="leg_geom" type="sphere" conaffinity="1" size="0.023" friction="0.80000000000000004 0.02 0.01"/>
+              <site name="fr_foot_site" size="0.023" pos="0 0 0"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="fl_leg" pos="0.1381 0.12675 -0.025000000000000001">
+        <joint name="fl_hip_roll" axis="1 0 0" range="0 9.9999999999999995e-21" frictionloss="0.29999999999999999"/>
+        <geom name="fl_hip_roll_geom" class="leg_geom" fromto="0 0 0 -0.050000000000000003 0 0"/>
+        <body name="fl_hip_pitch" pos="-0.050000000000000003 0 0">
+          <joint name="fl_hip_pitch" axis="0 1 0" range="-0.68600000000000005 4.5010000000000003" frictionloss="0.29999999999999999"/>
+          <geom name="fl_hip_pitch_geom" class="leg_geom" fromto="0 0 0 0 0 -0.21299999999999999"/>
+          <body name="fl_knee" pos="0 0 -0.21299999999999999">
+            <joint name="fl_knee" axis="0 1 0" range="-2.8180000000000001 -0.88800000000000001" frictionloss="1"/>
+            <geom name="fl_shin_geom" class="leg_geom" conaffinity="0" fromto="0 0 0 0 0 -0.21299999999999999"/>
+            <body name="fl_foot" pos="0 0 -0.21299999999999999">
+              <geom name="fl_foot_geom" class="leg_geom" type="sphere" conaffinity="1" size="0.023" friction="0.80000000000000004 0.02 0.01"/>
+              <site name="fl_foot_site" size="0.023" pos="0 0 0"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="vertebrae_1" childclass="tq1" pos="-0.050000000000000003 0 0.59999999999999998">
+      <joint name="joint_vertebrae_1" type="free"/>
+      <geom name="vertebrae_1_a1_geom" class="vertebra_geom" fromto="0 0 0 -0.05656854249492381 0 0.05656854249492381"/>
+      <site name="vertebrae_1_a1" size="0.0050000000000000001" pos="-0.05656854249492381 0 0.05656854249492381"/>
+      <geom name="vertebrae_1_a2_geom" class="vertebra_geom" fromto="0 0 0 -0.05656854249492381 0 -0.05656854249492381"/>
+      <site name="vertebrae_1_a2" size="0.0050000000000000001" pos="-0.05656854249492381 0 -0.05656854249492381"/>
+      <geom name="vertebrae_1_b1_geom" class="vertebra_geom" fromto="0 0 0 0.05656854249492381 0.05656854249492381 0"/>
+      <site name="vertebrae_1_b1" size="0.0050000000000000001" pos="0.05656854249492381 0.05656854249492381 0"/>
+      <geom name="vertebrae_1_b2_geom" class="vertebra_geom" fromto="0 0 0 0.05656854249492381 -0.05656854249492381 0"/>
+      <site name="vertebrae_1_b2" size="0.0050000000000000001" pos="0.05656854249492381 -0.05656854249492381 0"/>
+      <geom name="rear_spacer" class="vertebra_geom" type="capsule" fromto="0 0 0 -0.1381 0 0"/>
+      <geom name="front_shoulder" class="leg_geom" fromto="-0.1381 -0.12675 -0.025000000000000001 -0.1381 0.12675 -0.025000000000000001"/>
+      <geom name="front_shoulder_attach" class="leg_geom" size="0.0050000000000000001" fromto="-0.1381 0 0 -0.1381 0 -0.025000000000000001"/>
+      <body name="rr_leg" pos="-0.1381 -0.12675 -0.025000000000000001">
+        <joint name="rr_hip_roll" axis="1 0 0" range="0 9.9999999999999995e-21" frictionloss="0.29999999999999999"/>
+        <geom name="rr_hip_roll_geom" class="leg_geom" fromto="0 0 0 -0.050000000000000003 0 0"/>
+        <body name="rr_hip_pitch" pos="-0.050000000000000003 0 0">
+          <joint name="rr_hip_pitch" axis="0 1 0" range="-0.68600000000000005 4.5010000000000003" frictionloss="0.29999999999999999"/>
+          <geom name="rr_hip_pitch_geom" class="leg_geom" fromto="0 0 0 0 0 -0.21299999999999999"/>
+          <body name="rr_knee" pos="0 0 -0.21299999999999999">
+            <joint name="rr_knee" axis="0 1 0" range="-2.8180000000000001 -0.88800000000000001" frictionloss="1"/>
+            <geom name="rr_shin_geom" class="leg_geom" conaffinity="0" fromto="0 0 0 0 0 -0.21299999999999999"/>
+            <body name="rr_foot" pos="0 0 -0.21299999999999999">
+              <geom name="rr_foot_geom" class="leg_geom" type="sphere" conaffinity="1" size="0.023" friction="0.80000000000000004 0.02 0.01"/>
+              <site name="rr_foot_site" size="0.023" pos="0 0 0"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="rl_leg" pos="-0.1381 0.12675 -0.025000000000000001">
+        <joint name="rl_hip_roll" axis="1 0 0" range="0 9.9999999999999995e-21" frictionloss="0.29999999999999999"/>
+        <geom name="rl_hip_roll_geom" class="leg_geom" fromto="0 0 0 -0.050000000000000003 0 0"/>
+        <body name="rl_hip_pitch" pos="-0.050000000000000003 0 0">
+          <joint name="rl_hip_pitch" axis="0 1 0" range="-0.68600000000000005 4.5010000000000003" frictionloss="0.29999999999999999"/>
+          <geom name="rl_hip_pitch_geom" class="leg_geom" fromto="0 0 0 0 0 -0.21299999999999999"/>
+          <body name="rl_knee" pos="0 0 -0.21299999999999999">
+            <joint name="rl_knee" axis="0 1 0" range="-2.8180000000000001 -0.88800000000000001" frictionloss="1"/>
+            <geom name="rl_shin_geom" class="leg_geom" conaffinity="0" fromto="0 0 0 0 0 -0.21299999999999999"/>
+            <body name="rl_foot" pos="0 0 -0.21299999999999999">
+              <geom name="rl_foot_geom" class="leg_geom" type="sphere" conaffinity="1" size="0.023" friction="0.80000000000000004 0.02 0.01"/>
+              <site name="rl_foot_site" size="0.023" pos="0 0 0"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <geom name="target_marker0" class="/" type="sphere" size="0.02" rgba="1 0 0 0.69999999999999996" pos="0 0 0.57999999999999996"/>
+    <geom name="target_marker1" class="/" type="sphere" size="0.02" rgba="1 0 0 0.69999999999999996" pos="3 0 0.29999999999999999"/>
+    <geom name="target_marker2" class="/" type="sphere" size="0.02" rgba="1 0 0 0.69999999999999996" pos="5 0 0.29999999999999999"/>
+    <geom name="target_marker3" class="/" type="sphere" size="0.02" rgba="1 0 0 0.69999999999999996" pos="8 0 0.57999999999999996"/>
+  </worldbody>
+  <tendon>
+    <spatial name="lat_a1_0" class="lateral_tendon" springlength="0.090000000000000011">
+      <site site="vertebrae_0_a1"/>
+      <site site="vertebrae_1_a1"/>
+    </spatial>
+    <spatial name="lat_a2_0" class="lateral_tendon" springlength="0.090000000000000011">
+      <site site="vertebrae_0_a2"/>
+      <site site="vertebrae_1_a2"/>
+    </spatial>
+    <spatial name="lat_b1_0" class="lateral_tendon" springlength="0.090000000000000011">
+      <site site="vertebrae_0_b1"/>
+      <site site="vertebrae_1_b1"/>
+    </spatial>
+    <spatial name="lat_b2_0" class="lateral_tendon" springlength="0.090000000000000011">
+      <site site="vertebrae_0_b2"/>
+      <site site="vertebrae_1_b2"/>
+    </spatial>
+    <spatial name="diag_a1b1_0" class="diagonal_tendon" springlength="0.072964321634924362">
+      <site site="vertebrae_0_a1"/>
+      <site site="vertebrae_1_b1"/>
+    </spatial>
+    <spatial name="diag_a2b2_0" class="diagonal_tendon" springlength="0.072964321634924362">
+      <site site="vertebrae_0_a2"/>
+      <site site="vertebrae_1_b2"/>
+    </spatial>
+    <spatial name="diag_a1b2_0" class="diagonal_tendon" springlength="0.072964321634924362">
+      <site site="vertebrae_0_a1"/>
+      <site site="vertebrae_1_b2"/>
+    </spatial>
+    <spatial name="diag_a2b1_0" class="diagonal_tendon" springlength="0.072964321634924362">
+      <site site="vertebrae_0_a2"/>
+      <site site="vertebrae_1_b1"/>
+    </spatial>
+  </tendon>
+  <actuator>
+    <position name="fr_hip_roll" class="/" ctrlrange="0 9.9999999999999995e-21" forcerange="0 0" joint="fr_hip_roll"/>
+    <position name="fr_hip_pitch" class="/" ctrlrange="-0.68600000000000005 4.5010000000000003" forcerange="-4.7400000000000002 4.7400000000000002" joint="fr_hip_pitch"/>
+    <position name="fr_knee" class="/" ctrlrange="-2.8180000000000001 -0.88800000000000001" forcerange="-7.1099999999999994 7.1099999999999994" joint="fr_knee"/>
+    <position name="fl_hip_roll" class="/" ctrlrange="0 9.9999999999999995e-21" forcerange="0 0" joint="fl_hip_roll"/>
+    <position name="fl_hip_pitch" class="/" ctrlrange="-0.68600000000000005 4.5010000000000003" forcerange="-4.7400000000000002 4.7400000000000002" joint="fl_hip_pitch"/>
+    <position name="fl_knee" class="/" ctrlrange="-2.8180000000000001 -0.88800000000000001" forcerange="-7.1099999999999994 7.1099999999999994" joint="fl_knee"/>
+    <position name="rr_hip_roll" class="/" ctrlrange="0 9.9999999999999995e-21" forcerange="0 0" joint="rr_hip_roll"/>
+    <position name="rr_hip_pitch" class="/" ctrlrange="-0.68600000000000005 4.5010000000000003" forcerange="-4.7400000000000002 4.7400000000000002" joint="rr_hip_pitch"/>
+    <position name="rr_knee" class="/" ctrlrange="-2.8180000000000001 -0.88800000000000001" forcerange="-7.1099999999999994 7.1099999999999994" joint="rr_knee"/>
+    <position name="rl_hip_roll" class="/" ctrlrange="0 9.9999999999999995e-21" forcerange="0 0" joint="rl_hip_roll"/>
+    <position name="rl_hip_pitch" class="/" ctrlrange="-0.68600000000000005 4.5010000000000003" forcerange="-4.7400000000000002 4.7400000000000002" joint="rl_hip_pitch"/>
+    <position name="rl_knee" class="/" ctrlrange="-2.8180000000000001 -0.88800000000000001" forcerange="-7.1099999999999994 7.1099999999999994" joint="rl_knee"/>
+  </actuator>
+  <sensor>
+    <jointpos name="fr_hip_roll_pos" joint="fr_hip_roll"/>
+    <jointpos name="fr_hip_pitch_pos" joint="fr_hip_pitch"/>
+    <jointpos name="fr_knee_pos" joint="fr_knee"/>
+    <jointpos name="fl_hip_roll_pos" joint="fl_hip_roll"/>
+    <jointpos name="fl_hip_pitch_pos" joint="fl_hip_pitch"/>
+    <jointpos name="fl_knee_pos" joint="fl_knee"/>
+    <jointpos name="rr_hip_roll_pos" joint="rr_hip_roll"/>
+    <jointpos name="rr_hip_pitch_pos" joint="rr_hip_pitch"/>
+    <jointpos name="rr_knee_pos" joint="rr_knee"/>
+    <jointpos name="rl_hip_roll_pos" joint="rl_hip_roll"/>
+    <jointpos name="rl_hip_pitch_pos" joint="rl_hip_pitch"/>
+    <jointpos name="rl_knee_pos" joint="rl_knee"/>
+    <jointvel name="fr_hip_roll_vel" joint="fr_hip_roll"/>
+    <jointvel name="fr_hip_pitch_vel" joint="fr_hip_pitch"/>
+    <jointvel name="fr_knee_vel" joint="fr_knee"/>
+    <jointvel name="fl_hip_roll_vel" joint="fl_hip_roll"/>
+    <jointvel name="fl_hip_pitch_vel" joint="fl_hip_pitch"/>
+    <jointvel name="fl_knee_vel" joint="fl_knee"/>
+    <jointvel name="rr_hip_roll_vel" joint="rr_hip_roll"/>
+    <jointvel name="rr_hip_pitch_vel" joint="rr_hip_pitch"/>
+    <jointvel name="rr_knee_vel" joint="rr_knee"/>
+    <jointvel name="rl_hip_roll_vel" joint="rl_hip_roll"/>
+    <jointvel name="rl_hip_pitch_vel" joint="rl_hip_pitch"/>
+    <jointvel name="rl_knee_vel" joint="rl_knee"/>
+    <gyro name="gyro" site="com_vertebrae_1"/>
+    <velocimeter name="local_linvel" site="com_vertebrae_1"/>
+    <accelerometer name="accelerometer" site="com_vertebrae_1"/>
+    <framepos name="position" objtype="site" objname="com_vertebrae_1"/>
+    <framezaxis name="upvector" objtype="site" objname="com_vertebrae_1"/>
+    <framexaxis name="forwardvector" objtype="site" objname="com_vertebrae_1"/>
+    <framelinvel name="global_linvel" objtype="site" objname="com_vertebrae_1"/>
+    <frameangvel name="global_angvel" objtype="site" objname="com_vertebrae_1"/>
+    <framequat name="orientation" objtype="site" objname="com_vertebrae_1"/>
+    <framelinvel name="fr_foot_global_linvel" objtype="site" objname="fr_foot_site"/>
+    <framelinvel name="fl_foot_global_linvel" objtype="site" objname="fl_foot_site"/>
+    <framelinvel name="rr_foot_global_linvel" objtype="site" objname="rr_foot_site"/>
+    <framelinvel name="rl_foot_global_linvel" objtype="site" objname="rl_foot_site"/>
+    <touch name="fr_foot_touch" site="fr_foot_site"/>
+    <touch name="fl_foot_touch" site="fl_foot_site"/>
+    <touch name="rr_foot_touch" site="rr_foot_site"/>
+    <touch name="rl_foot_touch" site="rl_foot_site"/>
+  </sensor>
+  <keyframe>
+    <key name="stable_pose" qpos="0.050000000000000003 0 0.59999999999999998 1 0 0 0 0 0.90000000000000002 -1.55 0 0.90000000000000002 -1.55 -0.050000000000000003 0 0.59999999999999998 1 0 0 0 0 0.90000000000000002 -1.55 0 0.90000000000000002 -1.55" ctrl="0 0.90000000000000002 -1.55 0 0.90000000000000002 -1.55 0 0.90000000000000002 -1.55 0 0.90000000000000002 -1.55"/>
+  </keyframe>
+</mujoco>

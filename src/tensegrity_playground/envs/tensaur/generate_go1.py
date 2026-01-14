@@ -58,7 +58,7 @@ DEFAULT_CONFIG = {
         },
         "lateral_tendon": {
             "tendon": {
-                "stiffness": 5000,
+                "stiffness": 15000,
                 "damping": 	5,
                 "frictionloss": 0.02,
                 "width": 0.002,
@@ -67,7 +67,7 @@ DEFAULT_CONFIG = {
         },
         "diagonal_tendon": {
             "tendon": {
-                "stiffness": 3000,
+                "stiffness": 5000,
                 "damping": 5,
                 "frictionloss": 0.02,
                 "width": 0.002,
@@ -82,11 +82,11 @@ DEFAULT_CONFIG = {
         "foot_radius": 0.023,       # 足端球半径
     },
     "spine": {
-        "num_segments": 2,
-        "segment_spacing": 0.1,
+        "num_segments": 3,
+        "segment_spacing": 0.07,
         "initial_z": 0.6,  # 腿变长后抬高初始质心高度以避免穿地 0.474 站直 0.38
         "alpha": np.pi / 4,
-        "alpha_length": 0.08,
+        "alpha_length": 0.10,
         "beta": np.pi / 4,
         "beta_length": 0.08,
         "lateral_pretension": 0.90,
@@ -99,9 +99,9 @@ DEFAULT_CONFIG = {
     },
     "actuation": {
         # 参考 go1 的关节范围与力矩限制（位置型执行器的 forcerange）
-        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7*0.6, 23.7*0.6]},    #-0.863, 0.863
-        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7*0.6, 23.7*0.6]},
-        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55*0.6, 35.55*0.6]},
+        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7*0.2, 23.7*0.2]},    #-0.863, 0.863
+        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7*0.2, 23.7*0.2]},
+        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55*0.2, 35.55*0.2]},
     },
     "legs": {"z_offset": -0.025},
     "keyframe": {"leg_qpos": [-0, 0.9, -1.55, 0, 0.9, -1.55]},    #[-0.06, 0.9, -1.55, 0.06, 0.9, -1.55]
@@ -413,7 +413,7 @@ def add_legs(model, config, front_offset=0.0, rear_offset=0.0):
     z = config["legs"]["z_offset"]
     leg_segment = config["spine"]["num_segments"] - 1
 
-    for idx, segment in [(0, "front"), (leg_segment, "hind")]:
+    for idx, segment in [(leg_segment, "front"), (0, "hind")]:
         name = f"vertebrae_{idx}"
         body = model.find("body", name)
 
@@ -515,6 +515,7 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_foot_geom",
         type="sphere",
         size=[foot_r],
+        contype=1,
         conaffinity=1,
         dclass="leg_geom",
         friction=[0.8, 0.02, 0.01],
@@ -627,6 +628,14 @@ def add_sensors(model, config):
             site=f"{leg}_foot_site",
         )
 
+    # 每个脚的受力传感器
+    for leg in ["fr", "fl", "rr", "rl"]:
+        sensor.add(
+            "force",
+            name=f"{leg}_foot_force",
+            site=f"{leg}_foot_site",
+        )
+
 
 def generate_keyframe(model, config):
     n = config["spine"]["num_segments"]
@@ -651,7 +660,7 @@ def generate_keyframe(model, config):
 def add_target_visualization(model, config, target_distance_bl=15.0, body_length=GO1_HIP_TO_HIP_LENGTH, tolearance=0.1):
     target_x = target_distance_bl * body_length  # 固定在 15*0.3762 = 5.643m 处
     model.worldbody.add(
-        "geom",
+        "site",
         name="target_marker0",
         type="sphere",
         size=[tolearance],
@@ -660,7 +669,7 @@ def add_target_visualization(model, config, target_distance_bl=15.0, body_length
     )
 
     model.worldbody.add(
-        "geom",
+        "site",
         name="target_marker1",
         type="sphere",
         size=[tolearance],
@@ -669,7 +678,7 @@ def add_target_visualization(model, config, target_distance_bl=15.0, body_length
     )    
 
     model.worldbody.add(
-        "geom",
+        "site",
         name="target_marker2",
         type="sphere",
         size=[tolearance],
@@ -684,7 +693,7 @@ def add_target_visualization(model, config, target_distance_bl=15.0, body_length
         size=[tolearance],
         pos=[8, 0.0, config["spine"]["initial_z"]-0.02],  # 位置写死在XML中
         rgba=[1, 0, 0, 0.7],
-    )
+    )    
 
 def generate_quadruped_from_config(config: dict, vis=visual):
     model = generate_root(config)

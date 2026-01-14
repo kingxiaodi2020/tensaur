@@ -20,7 +20,7 @@ class Individual:
     
     def __post_init__(self):
         """验证基因参数"""
-        required_genes = ['num_segments']
+        required_genes = ['lateral_verti_stiffness']
         for gene in required_genes:
             if gene not in self.genes:
                 raise ValueError(f"Missing necessary gene: {gene}")

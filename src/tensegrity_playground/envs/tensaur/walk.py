@@ -37,7 +37,7 @@ LOCAL_LINVEL_SENSOR = "local_linvel"
 ORIENTATION_SENSOR = "orientation"
 UPVECTOR_SENSOR = "upvector"
 POSITION_SENSOR = "position"
-
+FORWARDVECTOR_SENSOR = "forwardvector" 
 
 def default_config() -> config_dict.ConfigDict:
     return config_dict.create(
@@ -51,6 +51,12 @@ def default_config() -> config_dict.ConfigDict:
         history_len=1,
         soft_joint_pos_limit_factor=0.95,
         xml=None,  # 支持从 config 传入 xml_path
+        
+        enable_reset_randomization=True,  # 添加这个配置项
+        reset_randomization=config_dict.create(
+            y_range=[-2.0, 2.0],
+        ),
+
         noise_config=config_dict.create(
             level=0.0,  # Set to 0.0 to disable noise.
             scales=config_dict.create(
@@ -66,17 +72,18 @@ def default_config() -> config_dict.ConfigDict:
             scales=config_dict.create(
                 # Tracking
                 tracking_lin_vel=2.0,
-                tracking_ang_vel=0.5,
+                # tracking_ang_vel=0.5,
                 # forward_progress=2.0,       
                 # Base reward.
                 # lin_vel_z=-0.5,
                 # ang_vel_xy=-0.05,
                 # orientation=-1,
                 # Other
-                dof_pos_limits=-1.0,
+                dof_pos_limits=-0.1,
                 # pose=0.5,
                 # Other.
                 termination=-10.0,
+                # stationary=-2.0,
                 # stand_still=-1.0,
                 # Regularization.
                 torques=-0.0002,
@@ -147,6 +154,9 @@ class Walk(mjx_env.MjxEnv):
         # )
         self._mj_model.opt.timestep = self._config.sim_dt
 
+        # === 新增：初始化 heightfield 地形信息 ===
+        # self._init_terrain_from_model()
+
         # Modify PD gains.
         self._mj_model.dof_damping[6:] = config.Kd
         self._mj_model.actuator_gainprm[:, 0] = config.Kp
@@ -167,11 +177,28 @@ class Walk(mjx_env.MjxEnv):
         self._init_ctrl = jp.array(self._mj_model.keyframe("stable_pose").ctrl)
 
         self._default_pose = jp.array(
-            [-0.06, 0.9, -1.55, 0.06, 0.9, -1.55, -0.06, 0.9, -1.55, 0.06, 0.9, -1.55]
+            [-0.0, 0.9, -1.55, 0.0, 0.9, -1.55, -0.0, 0.9, -1.55, 0.0, 0.9, -1.55]
         )
         
         # self._torso_body_id = self._mj_model.body(consts.ROOT_BODY).id
         # self._torso_mass = self._mj_model.body_subtreemass[self._torso_body_id]
+
+        # look for vertebrae qpos ranges
+        vertebrae_qpos_ranges = []
+        for body_id in range(self._mj_model.nbody):
+            body_name = mujoco.mj_id2name(
+                self._mj_model, mujoco.mjtObj.mjOBJ_BODY, body_id
+            )
+            if body_name and body_name.startswith("vertebrae_"):
+                # 获取该 body 的第一个 joint (freejoint)
+                jnt_adr = self._mj_model.body_jntadr[body_id]
+                if jnt_adr >= 0:  # 有 joint
+                    qpos_adr = self._mj_model.jnt_qposadr[jnt_adr]
+                    # freejoint: xyz(3) + quat(4) = 7
+                    vertebrae_qpos_ranges.append((qpos_adr, qpos_adr + 7))
+        
+        self._vertebrae_qpos_ranges = tuple(vertebrae_qpos_ranges)
+
         self._torso_body_id = self._mj_model.body("vertebrae_0").id        
 
         # look for correct leg joint indices
@@ -236,59 +263,69 @@ class Walk(mjx_env.MjxEnv):
             )
         self._foot_linvel_sensor_adr = jp.array(foot_linvel_sensor_adr)
 
+        # 添加：获取足部3D力传感器地址
+        foot_force_sensor_adr = []
+        for leg in ["fr", "fl", "rr", "rl"]:
+            sensor_id = self._mj_model.sensor(f"{leg}_foot_force").id
+            sensor_adr = self._mj_model.sensor_adr[sensor_id]
+            sensor_dim = self._mj_model.sensor_dim[sensor_id]
+            foot_force_sensor_adr.append(
+                list(range(sensor_adr, sensor_adr + sensor_dim))
+            )
+        self._foot_force_sensor_adr = jp.array(foot_force_sensor_adr)
             
     def reset(self, rng: jax.Array) -> mjx_env.State:
+        rng, key = jax.random.split(rng)
+        
         qpos = self._init_q
         qvel = jp.zeros(self.mjx_model.nv)
 
-        # x=+U(-0.5, 0.5), y=+U(-0.5, 0.5), yaw=U(-3.14, 3.14).
-        # rng, key = jax.random.split(rng)
-        # dx = jax.random.uniform(key, minval=-5.0, maxval=5.0)
-        # qpos = qpos.at[0].set(qpos[0] + dx)
+        # 只在训练时应用随机化（通过config控制）
+        if self._config.enable_reset_randomization:
+            rand_cfg = self._config.reset_randomization
+    
+            rng, key = jax.random.split(rng)
+            dy = jax.random.uniform(
+                key,
+                minval=rand_cfg.y_range[0],
+                maxval=rand_cfg.y_range[1]
+            )
 
-        # rng, key = jax.random.split(rng)
-        # dy = jax.random.uniform(key, minval=-0.2, maxval=0.2)
-        # qpos = qpos.at[1].set(qpos[1] + dy)
-
-        # rng, key = jax.random.split(rng)
-        # yaw = jax.random.uniform(key, (1,), minval=-3.14 / 6, maxval=3.14 / 6)
-        # quat = math.axis_angle_to_quat(jp.array([0, 0, 1]), yaw)
-        # new_quat = math.quat_mul(qpos[3:7], quat)
-        # qpos = qpos.at[3:7].set(new_quat)
-
-        # d(xyzrpy)=U(-0.5, 0.5)
-        # rng, key = jax.random.split(rng)
-        # qvel = qvel.at[0:6].set(
-        #     jax.random.uniform(key, (6,), minval=-0.2, maxval=0.2)
-        # )
-
+            # 对每个 vertebrae 的 free joint 都加同一个 dy
+            for start, _ in self._vertebrae_qpos_ranges:
+                y_idx = start + 1   # y 的 qpos index
+                qpos = qpos.at[y_idx].add(dy)
+        
         data = mjx_env.init(
             self.mjx_model,  qpos=qpos, qvel=qvel, ctrl=self._init_ctrl
         )
 
         # Target velocity commands.
         cmd = jp.array(self._config.reward_config.cmd)
-
-        # Adaptation experiments.``
+        
+        # Adaptation experiments.
         info = {
             "rng": rng,
             "command": cmd,
-            "actual_vel": jp.zeros(3),  # 实际速度 (初始化为零向量)
+            "global_vel": jp.zeros(3),  # 实际速度 (初始化为零向量)
             "last_act": jp.zeros(self.mjx_model.nu),
             "last_last_act": jp.zeros(self.mjx_model.nu),
             "feet_air_time": jp.zeros(4),
             "last_contact": jp.zeros(4, dtype=bool),
             "swing_peak": jp.zeros(4),
-            "max_x": 0.0
+            "position": jp.zeros(3),
+            "max_x": 0.0,
+            # "stationary_count": 0.0,  # 添加：记录静止步数
         }
 
         metrics = {}
         for k in self._config.reward_config.scales.keys():
             metrics[f"reward/{k}"] = jp.zeros(())
         metrics["swing_peak"] = jp.zeros(())
-        metrics["actual_vel_x"] = jp.zeros(())
-        metrics["actual_vel_y"] = jp.zeros(())
-        metrics["max_x"] = jp.zeros(())
+        metrics["global_vel_x"] = jp.zeros(())
+        metrics["global_vel_y"] = jp.zeros(())
+        metrics["max_x_final"] = jp.zeros(())
+        # metrics["stationary_count"] = jp.zeros(())
 
         obs = self._get_obs(data, info)
         reward, done = jp.zeros(2)
@@ -311,9 +348,29 @@ class Walk(mjx_env.MjxEnv):
         p_fz = p_f[..., -1]
         state.info["swing_peak"] = jp.maximum(state.info["swing_peak"], p_fz)
 
+        state.info["position"] = self.get_position(data)
+        state.info["global_vel"] = self.get_global_linvel(data)  #data.cvel[self._torso_body_id][3:]
+
+        current_x = state.info["position"][0]
+        prev_max_x = state.info["max_x"]
+        new_max_x = jp.maximum(prev_max_x, current_x)
+        inc = new_max_x - prev_max_x
+        state.info["max_x"] = new_max_x
+
+        # enable_stationary_check = new_max_x > 5.0
+        # # 检测是否停滞：使用增量 inc
+        # is_stationary = inc < 0.002  # 阈值：每步前进少于0.5cm视为静止
+        # state.info["stationary_count"] = jp.where(
+        #     is_stationary & enable_stationary_check,
+        #     state.info["stationary_count"] + 1,
+        #     0  # 如果有进展就重置计数
+        # )        
+
+        # stationary_termination = (state.info["stationary_count"] > 50) & enable_stationary_check  # 50步 = 1秒
+
         # <---------------- Evaluate change ---------------->
         obs = self._get_obs(data, state.info)
-        done = self._get_termination(data)
+        done = self._get_termination(data) # | stationary_termination
 
         rewards = self._get_reward(
             data,
@@ -329,10 +386,7 @@ class Walk(mjx_env.MjxEnv):
             for k, v in rewards.items()
         }
         reward = sum(rewards.values()) * self.dt
-        
-        current_x =self.get_position(data)[0]
-        state.info["max_x"] = jp.maximum(state.info["max_x"], current_x)
-        state.info["actual_vel"] = self.get_global_linvel(data)  #data.cvel[self._torso_body_id][3:]
+
         state.info["last_last_act"] = state.info["last_act"] 
         state.info["last_act"] = action
         state.info["feet_air_time"] *= ~contact
@@ -342,9 +396,10 @@ class Walk(mjx_env.MjxEnv):
         for k, v in rewards.items():
             state.metrics[f"reward/{k}"] = v
         state.metrics["swing_peak"] = jp.mean(state.info["swing_peak"])
-        state.metrics["actual_vel_x"] = state.info["actual_vel"][0]
-        state.metrics["actual_vel_y"] = state.info["actual_vel"][1]
-        state.metrics["max_x"] = state.info["max_x"]
+        state.metrics["global_vel_x"] = state.info["global_vel"][0]
+        state.metrics["global_vel_y"] = state.info["global_vel"][1]
+        state.metrics["max_x_final"] = inc
+        # state.metrics["stationary_count"] = state.info["stationary_count"]  # 添加：监控静止计数
 
         done = done.astype(reward.dtype)
         state = state.replace(data=data, obs=obs, reward=reward, done=done)
@@ -403,6 +458,13 @@ class Walk(mjx_env.MjxEnv):
             * self._config.noise_config.scales.linvel
         )
 
+        # === 新增：计算 base 位置 & 朝向，并做地形采样 ===
+        base_pos = self.get_position(data)          # [3]
+        forward_vec = self.get_orientation(data)    # [3]，现在是 framexaxis
+        # terrain_obs = self._sample_terrain_heights(base_pos, forward_vec)  # [12]
+
+        foot_forces = data.sensordata[self._foot_force_sensor_adr].ravel()
+
         state = jp.hstack(
             [
                 noisy_linvel,  # 3
@@ -412,6 +474,10 @@ class Walk(mjx_env.MjxEnv):
                 noisy_joint_vel,  # 12
                 info["last_act"],  # 12
                 info["command"],  # 3
+                info["last_contact"],  # 4
+                info["feet_air_time"],  # 4
+                foot_forces,  # 12
+                # terrain_obs,  # 12  ← 新增：ETH-style 地形观测
             ]
         )
 
@@ -429,9 +495,7 @@ class Walk(mjx_env.MjxEnv):
             joint_angles - self._default_pose,  # 12
             joint_vel,  # 12
             data.actuator_force,  # 12
-            info["last_contact"],  # 4
             feet_vel,
-            info["feet_air_time"],  # 4
         ])
 
         return {
@@ -455,9 +519,9 @@ class Walk(mjx_env.MjxEnv):
                 info["command"], self.get_global_linvel(data)
                 # self.get_local_linvel(data)
             ),
-            "tracking_ang_vel": self._reward_tracking_ang_vel(
-                info["command"], self.get_gyro(data)
-            ),
+            # "tracking_ang_vel": self._reward_tracking_ang_vel(
+            #     info["command"], self.get_gyro(data)
+            # ),
 
             # "orientation": self._cost_orientation(data),
             # "forward_progress": self._reward_forward_progress(
@@ -483,8 +547,160 @@ class Walk(mjx_env.MjxEnv):
             #     #self.get_local_linvel(data)
             #     #info["command"]
             # ),
-            "dof_pos_limits": self._cost_joint_pos_limits(data.qpos[self._legs_qpos_idx])
+            "dof_pos_limits": self._cost_joint_pos_limits(data.qpos[self._legs_qpos_idx]),
+            # "stationary": self._cost_stationary(info),  # 添加静止惩罚
         }
+
+    def _init_terrain_from_model(self) -> None:
+        """从 MuJoCo 模型中提取 hfield 高度图和坐标映射信息。"""
+        # 先设默认值（没有 hfield 时就啥也不做）
+        self._terrain_height = None
+        self._terrain_x_min = 0.0
+        self._terrain_y_min = 0.0
+        self._terrain_cell_size_x = 1.0
+        self._terrain_cell_size_y = 1.0
+
+        # 找名为 "uneven_terrain" 的 hfield（根据 generate_go1_tendon.py）
+        try:
+            hfield_id = mujoco.mj_name2id(
+                self._mj_model, mujoco.mjtObj.mjOBJ_HFIELD, "uneven_terrain"
+            )
+        except Exception:
+            hfield_id = -1
+
+        if hfield_id < 0:
+            # 没有不平地：直接返回，后面采样函数会返回全 0
+            return
+
+        # 行列数
+        nrow = int(self._mj_model.hfield_nrow[hfield_id])
+        ncol = int(self._mj_model.hfield_ncol[hfield_id])
+        adr = int(self._mj_model.hfield_adr[hfield_id])
+
+        # 读取 hfield_data -> [nrow, ncol]
+        raw = np.array(
+            self._mj_model.hfield_data[adr : adr + nrow * ncol],
+            dtype=np.float32,
+        ).reshape(nrow, ncol)
+
+        # 存成 JAX 数组常量
+        self._terrain_height = jp.array(raw)
+
+        # hfield 的物理尺寸（半长 rx, ry）
+        rx, ry, hz, base = self._mj_model.hfield_size[hfield_id]
+
+        # 找几何体 "terrain" 的位置（hfield 放置的世界坐标）
+        try:
+            geom_id = mujoco.mj_name2id(
+                self._mj_model, mujoco.mjtObj.mjOBJ_GEOM, "terrain"
+            )
+        except Exception:
+            geom_id = -1
+
+        if geom_id >= 0:
+            cx = float(self._mj_model.geom_pos[geom_id][0])
+            cy = float(self._mj_model.geom_pos[geom_id][1])
+        else:
+            cx, cy = 0.0, 0.0
+
+        # 世界坐标系下的覆盖范围
+        # hfield 在本地坐标 [-rx, rx] x [-ry, ry]，再平移到 (cx, cy)
+        self._terrain_x_min = cx - float(rx)
+        self._terrain_y_min = cy - float(ry)
+
+        # 每个 cell 的大小（x/y 方向可以不同）
+        self._terrain_cell_size_x = 2.0 * float(rx) / float(ncol)
+        self._terrain_cell_size_y = 2.0 * float(ry) / float(nrow)
+
+    def _sample_terrain_heights(
+        self,
+        base_pos: jax.Array,      # [3]
+        forward_vec: jax.Array,   # [3]，来自 forwardvector sensor
+    ) -> jax.Array:
+        """ETH 风格：在机器人前方/左右固定网格采样高度，返回 [K]."""
+
+        # 如果没有 hfield，就返回全 0（平地）
+        if self._terrain_height is None:
+            return jp.zeros(12)
+
+        # --- 1) 定义 body 坐标系下的采样点偏移 ---
+        # 前向 (m)
+        x_offsets = jp.array([0.2, 0.4, 0.6, 0.8])
+        # 左右 (m)
+        y_offsets = jp.array([-0.15, 0.0, 0.15])
+
+        dx, dy = jp.meshgrid(x_offsets, y_offsets, indexing="xy")  # [4,3]
+        offsets_body = jp.stack(
+            [dx.reshape(-1), dy.reshape(-1)], axis=-1
+        )  # [K,2], K=12
+
+        # --- 2) 用 forward vector 定义世界系 basis ---
+        # forward_vec 是 IMU 的 x 轴方向 [fx, fy, fz]
+        f_xy = forward_vec[:2]
+        f_norm = jp.maximum(jp.linalg.norm(f_xy), 1e-6)
+        f = f_xy / f_norm                          # 前向单位向量
+        left = jp.array([-f[1], f[0]])            # 左侧单位向量
+
+        # --- 3) 从基座位置生成世界坐标采样点 ---
+        base_xy = base_pos[:2]
+        front = offsets_body[:, 0]   # [K]
+        lateral = offsets_body[:, 1] # [K]
+
+        # p = base_xy + front * f + lateral * left
+        points_xy = (
+            base_xy
+            + front[:, None] * f[None, :]
+            + lateral[:, None] * left[None, :]
+        )  # [K,2]
+
+        world_x = points_xy[:, 0]
+        world_y = points_xy[:, 1]
+
+        # --- 4) 世界坐标 -> heightmap 索引 ---
+        grid_x = (world_x - self._terrain_x_min) / self._terrain_cell_size_x
+        grid_y = (world_y - self._terrain_y_min) / self._terrain_cell_size_y
+
+        # --- 5) 双线性插值得到地面高度 ---
+        h = self._bilinear_interpolate(self._terrain_height, grid_x, grid_y)
+
+        # --- 6) 相对高度：地面 - base_z ---
+        base_z = base_pos[2]
+        rel_h = h - base_z
+
+        return rel_h  # [12]
+
+    def _bilinear_interpolate(
+        self,
+        heightmap: jax.Array,
+        grid_x: jax.Array,
+        grid_y: jax.Array,
+    ) -> jax.Array:
+        """对 heightmap 做双线性插值，grid_x/grid_y 是连续索引。"""
+        H, W = heightmap.shape
+
+        # 限制索引范围，避免越界
+        grid_x = jp.clip(grid_x, 0.0, W - 1.001)
+        grid_y = jp.clip(grid_y, 0.0, H - 1.001)
+
+        x0 = jp.floor(grid_x).astype(jp.int32)
+        y0 = jp.floor(grid_y).astype(jp.int32)
+        x1 = jp.minimum(x0 + 1, W - 1)
+        y1 = jp.minimum(y0 + 1, H - 1)
+
+        Ia = heightmap[y0, x0]  # top-left
+        Ib = heightmap[y0, x1]  # top-right
+        Ic = heightmap[y1, x0]  # bottom-left
+        Id = heightmap[y1, x1]  # bottom-right
+
+        wx = grid_x - x0.astype(grid_x.dtype)
+        wy = grid_y - y0.astype(grid_y.dtype)
+
+        w00 = (1.0 - wx) * (1.0 - wy)
+        w10 = wx * (1.0 - wy)
+        w01 = (1.0 - wx) * wy
+        w11 = wx * wy
+
+        return w00 * Ia + w10 * Ib + w01 * Ic + w11 * Id
 
     # Tracking rewards.
 
@@ -522,7 +738,13 @@ class Walk(mjx_env.MjxEnv):
         x, y = pos[0], pos[1]
         dist_sq = x**2 + y**2
         return dist_sq
-    
+
+    def _cost_stationary(self, info: dict[str, Any]) -> jax.Array:
+        """惩罚机器人长时间静止不动"""
+        # 渐进式惩罚：静止时间越长，惩罚越大
+        threshold = 10  # 10步后开始惩罚
+        return jp.where(info["stationary_count"] > threshold, 1.0, 0.0)
+        
     # Base-related rewards.
 
     def _cost_lin_vel_z(self, global_linvel) -> jax.Array:
@@ -533,24 +755,10 @@ class Walk(mjx_env.MjxEnv):
         # Penalize xy axes base angular velocity.
         return jp.sum(jp.square(global_angvel[:2]))
 
-    # def _cost_orientation(self, torso_zaxis: jax.Array) -> jax.Array:
-    #     # Penalize non flat base orientation.
-    #     return jp.sum(jp.square(torso_zaxis[:2]))
+    def _cost_orientation(self, torso_zaxis: jax.Array) -> jax.Array:
+        # Penalize non flat base orientation.
+        return jp.sum(jp.square(torso_zaxis[:2]))
 
-    def _cost_orientation(self, data: mjx.Data) -> jax.Array:
-        """
-        Penalize the robot's yaw deviation from the global forward direction.
-        """
-        # 获取前向方向向量 [x, y, z]
-        forward_vec = self.get_orientation(data)
-        
-        # 计算 yaw（水平面投影的角度）
-        # 理想前向方向是 [1, 0, 0]（x 轴）
-        yaw = jp.arctan2(forward_vec[1], forward_vec[0])
-        
-        # 惩罚 yaw 偏离 0
-        return jp.square(yaw)
-    
     # Energy related rewards.
 
     def _cost_torques(self, torques: jax.Array) -> jax.Array:
@@ -666,6 +874,10 @@ class Walk(mjx_env.MjxEnv):
         # 通过传感器数据获取足部接触状态
         vals= jp.squeeze(data.sensordata[self._foot_touch_sensor_adr], axis=-1)
         return vals > 1e-3
+
+    def get_forwardvector(self, data: mjx.Data) -> jax.Array:
+        """返回机体在世界坐标系下的前向单位向量（通常是 IMU frame 的 x 轴）。"""
+        return mjx_env.get_sensor_data(self.mj_model, data, FORWARDVECTOR_SENSOR)
     
     @property
     def xml_path(self) -> str:

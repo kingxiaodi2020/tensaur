@@ -6,7 +6,7 @@
 #SBATCH -J worker
 #SBATCH -p gpu              # 如分区名不同，稍后再改
 #SBATCH --gpus=1
-#SBATCH -t 24:00:00
+#SBATCH -t 48:00:00
 #SBATCH -o logs/workers/%x-%A_%a.out
 
 set -euo pipefail
@@ -102,19 +102,27 @@ ind = Individual(
     generation=data.get("generation", 0)
 )
 
-# ✅ 训练（单目标模式）
+# ✅ 训练（多目标模式，每个任务运行 3 个 seed）
 trainer = SingleIndividualTrainer()
-results = trainer.train_individual(ind, mode="single_objective")
+results = trainer.train_individual(ind, mode="multi_objective")
 
-# ✅ 保存结果
+# ✅ 保存结果（包含详细的每个 seed 的结果）
 summary = {
     "individual_id": ind.individual_id,
-    "fitness": results["fitness"],        # 单目标适应度
+    "objectives": results["objectives"],  # 平均后的 [avg_r_deviation, avg_max_x_final]
     "training_completed": ind.training_completed,
     "ckpt_dir": str(CKPT_DIR),
+    # ✅ 保存详细结果（用于调试和分析稳定性）
+    "avg_r_deviation": results.get("avg_r_deviation"),
+    "avg_max_x_final": results.get("avg_max_x_final"),
+    "radius_results": [r.get("r_deviation") for r in results.get("radius_results_list", [])],
+    "walk_results": [w.get("max_x_final") for w in results.get("walk_results_list", [])],
 }
 
 output_file = CKPT_DIR / "fitness.json"
 output_file.write_text(json.dumps(summary, indent=2))
 print(f"[worker] Results saved to {output_file}")
-print(f"[worker] Fitness: {results['fitness']:.2f}")
+print(f"[worker] Objectives (avg of 3 seeds): {results['objectives']}")
+print(f"[worker]   - Radius results: {summary['radius_results']}")
+print(f"[worker]   - Walk results: {summary['walk_results']}")
+PY

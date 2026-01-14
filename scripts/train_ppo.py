@@ -30,8 +30,8 @@ import pathlib
 import warnings
 
 from brax.training.agents.ppo import networks as ppo_networks
-# from brax.training.agents.ppo import train as ppo
-from scripts import train as ppo
+from brax.training.agents.ppo import train as ppo
+# from scripts import train as ppo
 from omegaconf import DictConfig, OmegaConf
 from hydra.core.hydra_config import HydraConfig
 from flax.training import orbax_utils
@@ -48,6 +48,7 @@ import tensegrity_playground  # noqa: F401 # pylint:disable=unused-import
 from mujoco_playground import registry
 from mujoco_playground import wrapper
 import json
+import numpy as np
 
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="jax")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="jax")
@@ -100,7 +101,17 @@ def main(cfg: DictConfig):
     if hasattr(cfg, "playground"):
         env_cfg.update(cfg.playground)
 
-    env = registry.load(cfg.environment_id, config_overrides=env_cfg)
+    # ===== 创建训练环境（启用随机化）=====
+    train_env_cfg = copy.deepcopy(env_cfg)
+    train_env_cfg.enable_reset_randomization = True  # 训练时启用随机化
+    env = registry.load(cfg.environment_id, config_overrides=train_env_cfg)
+
+    # ===== 创建评估环境（关闭随机化）=====
+    eval_env_cfg = copy.deepcopy(env_cfg)
+    eval_env_cfg.enable_reset_randomization = True  # 评估时禁用随机化
+    eval_env = registry.load(cfg.environment_id, config_overrides=eval_env_cfg)
+
+    # env = registry.load(cfg.environment_id, config_overrides=env_cfg)
 
     time_stamp = datetime.now().strftime("%y%m%d%H%M%S")
     run_id = (
@@ -124,6 +135,8 @@ def main(cfg: DictConfig):
             config={
                 "agent": cfg.agent,
                 "environment": cfg.playground,
+                # "train_randomization": True,  # 记录训练使用随机化
+                # "eval_randomization": False,   # 记录评估不使用随机化
             },
         )
 
@@ -182,7 +195,7 @@ def main(cfg: DictConfig):
         # 保存最新的指标(每次都更新)
         last_metrics.update(log_dict)
         nonlocal best_reward, best_step
-        cur = log_dict.get("eval/episode_max_x", None)
+        cur = log_dict.get("eval/episode_reward", None)
         if cur is not None:
             step = int(num_steps)
             if (cur > best_reward) or (cur == best_reward and (best_step is None or step > best_step)):
@@ -252,8 +265,19 @@ def main(cfg: DictConfig):
 
     # import ipdb
     # ipdb.set_trace()
+    # make_inference_fn, params, _ = ppo.train(
+    #     environment=env,
+    #     progress_fn=progress_fn,
+    #     network_factory=network_factory,
+    #     policy_params_fn=policy_params_fn,
+    #     wrap_env_fn=wrapper.wrap_for_brax_training,
+    #     **cfg.agent,
+    # )
+
+        # ===== 修改这里：传入训练环境和评估环境 =====
     make_inference_fn, params, _ = ppo.train(
-        environment=env,
+        environment=env,              # 训练环境（带随机化）
+        eval_env=eval_env,            # 评估环境（无随机化，固定起点）
         progress_fn=progress_fn,
         network_factory=network_factory,
         policy_params_fn=policy_params_fn,
@@ -295,92 +319,132 @@ def main(cfg: DictConfig):
         progress_bar.close()
 
     if cfg.export_video:
-            if cfg.checkpointing and best_step is not None:
-                best_ckpt_path = ckpt_path / f"ckpt_{best_step}"
-                if best_ckpt_path.exists():
-                    print(f"Loading best checkpoint from step {best_step}...")
-                    orbax_checkpointer = ocp.PyTreeCheckpointer()
-                    params = orbax_checkpointer.restore(best_ckpt_path, item=params)
-                    print(f"Best checkpoint loaded successfully (reward={best_reward:.3f})")
-                else:
-                    print(f"Warning: Best checkpoint at step {best_step} not found, using final params")
+        if cfg.checkpointing and best_step is not None:
+            best_ckpt_path = ckpt_path / f"ckpt_{best_step}"
+            if best_ckpt_path.exists():
+                print(f"Loading best checkpoint from step {best_step}...")
+                orbax_checkpointer = ocp.PyTreeCheckpointer()
+                restore_args = ocp.checkpoint_utils.construct_restore_args(params)
+                params = orbax_checkpointer.restore(best_ckpt_path, item=params, restore_args=restore_args)
+                print(f"Best checkpoint loaded successfully (reward={best_reward:.3f})")
             else:
-                print("Using final training params for video export")
+                print(f"Warning: Best checkpoint at step {best_step} not found, using final params")
+        else:
+            print("Using final training params for video export")
             
-            inference_fn = make_inference_fn(params, deterministic=True)
+        inference_fn = make_inference_fn(params, deterministic=True)
 
-            jit_inference_fn = jax.jit(inference_fn)
-            jit_reset_fn = jax.jit(env.reset)
-            jit_step_fn = jax.jit(env.step)
+        jit_inference_fn = jax.jit(inference_fn)
+        jit_reset_fn = jax.jit(eval_env.reset)
+        jit_step_fn = jax.jit(eval_env.step)
 
-            # Helper function to get sensor data    
-            def get_sensor_data_mujoco(
-                model: mujoco.MjModel, data: mujoco.MjData, sensor_name: str
-            ):
-                """Gets sensor data from regular MuJoCo data (not JAX)."""
-                try:
-                    sensor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, sensor_name)
-                    sensor_adr = model.sensor_adr[sensor_id]
-                    sensor_dim = model.sensor_dim[sensor_id]
-                    return data.sensordata[sensor_adr : sensor_adr + sensor_dim]
-                except:
-                    print(f"Sensor '{sensor_name}' not found in model")
-                    return None
-            
-            trajectory_data = []    # save trajectory data if needed
+        # Helper function to get sensor data
+        def get_sensor_data_mujoco(
+            model: mujoco.MjModel, data: mujoco.MjData, sensor_name: str
+        ):
+            """Gets sensor data from regular MuJoCo data (not JAX)."""
+            try:
+                sensor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_SENSOR, sensor_name)
+                sensor_adr = model.sensor_adr[sensor_id]
+                sensor_dim = model.sensor_dim[sensor_id]
+                return data.sensordata[sensor_adr : sensor_adr + sensor_dim]
+            except Exception:
+                print(f"Sensor '{sensor_name}' not found in model")
+                return None
 
-            rng = jax.random.key(cfg.agent.seed)
-            state = jit_reset_fn(rng)
-            rollout = [state]
-            for step in range(cfg.agent.eval_episode_length):
-                rng, act_rng = jax.random.split(rng)
-                ctrl, _ = jit_inference_fn(state.obs, act_rng)
-                state = jit_step_fn(state, ctrl)
+        # Add foot_names for contact sensors
+        foot_names = ["fr", "fl", "rr", "rl"]
+        contact_threshold = 1e-3  # Contact force threshold (N)
+        trajectory_data = []    # save trajectory data if needed
 
-                pos_data = get_sensor_data_mujoco(env.mj_model, state.data, "position")
-                if pos_data is not None:
-                    pos_x, pos_y, pos_z = pos_data[0], pos_data[1], pos_data[2]
-                    trajectory_data.append({
-                        "step": step,
-                        "pos_x": float(pos_x),
-                        "pos_y": float(pos_y),
-                        "pos_z": float(pos_z)
-                    })
-                
-                rollout.append(state)
-                if state.done:
-                    break
-            
-            # Optionally save trajectory data to a csv file
-            trajectory_file = f"{logdir}/{run_id}_trajectory.csv"
-            with open(trajectory_file, mode="w", newline="") as file:
-                writer = csv.DictWriter(file, fieldnames=["step", "pos_x", "pos_y", "pos_z"])
-                writer.writeheader()
-                writer.writerows(trajectory_data)
-            print(f"Trajectory data saved at '{trajectory_file}'.")
+        rng = jax.random.PRNGKey(cfg.agent.seed)
+        state = jit_reset_fn(rng)
+        rollout = [state]
+        for step in range(cfg.agent.eval_episode_length):
+            rng, act_rng = jax.random.split(rng)
+            ctrl, _ = jit_inference_fn(state.obs, act_rng)
+            state = jit_step_fn(state, ctrl)
 
-            fps = int(1.0 / env.dt / cfg.render_every)
-            traj = rollout[:: cfg.render_every]
+            # Get global position (x, y, z)
+            pos_data = get_sensor_data_mujoco(eval_env.mj_model, state.data, "position")
+            if pos_data is not None:
+                pos_x, pos_y, pos_z = pos_data[0], pos_data[1], pos_data[2]
+            else:
+                pos_x, pos_y, pos_z = None, None, None
 
-            scene_option = mujoco.MjvOption()
-            scene_option.geomgroup[2] = True
-            scene_option.geomgroup[3] = False
-            scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = False
-            scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
-            scene_option.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = False
+            # Get foot contact data
+            foot_contacts = []
+            foot_forces = []
+            for foot in foot_names:
+                contact_sensor_name = f"{foot}_foot_touch"
+                contact_force = get_sensor_data_mujoco(eval_env.mj_model, state.data, contact_sensor_name)
 
-            camera_names = [cfg.render_camera, "overview"]
+                if contact_force is not None:
+                    # Calculate the magnitude of the contact force
+                    force_magnitude = float(np.linalg.norm(contact_force))
+                    foot_forces.append(force_magnitude)
 
-            for camera in camera_names:
-                frames = env.render(
-                    traj,
-                    height=600,
-                    width=800,
-                    scene_option=scene_option,
-                    camera=camera,
-                )
-                media.write_video(f"{logdir}/{run_id}_{camera}.mp4", frames, fps=fps)
-                print(f"Rollout video saved at '{logdir}/{run_id}_{camera}.mp4'.")
+                    # Determine if the foot is in contact with the ground
+                    is_contact = 1 if force_magnitude > contact_threshold else 0
+                    foot_contacts.append(is_contact)
+                else:
+                    foot_contacts.append(0)
+                    foot_forces.append(0.0)
+
+            # Append trajectory data
+            trajectory_data.append({
+                "step": step,
+                "pos_x": float(pos_x) if pos_x is not None else None,
+                "pos_y": float(pos_y) if pos_y is not None else None,
+                "pos_z": float(pos_z) if pos_z is not None else None,
+                "FR_contact": foot_contacts[0],
+                "FL_contact": foot_contacts[1],
+                "RR_contact": foot_contacts[2],
+                "RL_contact": foot_contacts[3],
+                "FR_force": foot_forces[0],
+                "FL_force": foot_forces[1],
+                "RR_force": foot_forces[2],
+                "RL_force": foot_forces[3],
+            })
+
+            rollout.append(state)
+            if state.done:
+                break
+
+        # Optionally save trajectory data to a csv file
+        trajectory_file = f"{logdir}/{run_id}_trajectory.csv"
+        with open(trajectory_file, mode="w", newline="") as file:
+            writer = csv.DictWriter(file, fieldnames=[
+                "step", "pos_x", "pos_y", "pos_z",
+                "FR_contact", "FL_contact", "RR_contact", "RL_contact",
+                "FR_force", "FL_force", "RR_force", "RL_force"
+            ])
+            writer.writeheader()
+            writer.writerows(trajectory_data)
+        print(f"Trajectory data saved at '{trajectory_file}'.")
+
+        fps = int(1.0 / eval_env.dt / cfg.render_every)
+        traj = rollout[:: cfg.render_every]
+
+        scene_option = mujoco.MjvOption()
+        scene_option.geomgroup[2] = True
+        scene_option.geomgroup[3] = False
+        scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = False
+        scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
+        scene_option.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = False
+
+        camera_names = [cfg.render_camera, "overview"]
+
+        for camera in camera_names:
+            frames = eval_env.render(
+                traj,
+                height=600,
+                width=800,
+                scene_option=scene_option,
+                camera=camera,
+            )
+            media.write_video(f"{logdir}/{run_id}_{camera}.mp4", frames, fps=fps)
+            print(f"Rollout video saved at '{logdir}/{run_id}_{camera}.mp4'.")
 
 
 if __name__ == "__main__":

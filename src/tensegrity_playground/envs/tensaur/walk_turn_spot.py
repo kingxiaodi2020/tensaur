@@ -27,7 +27,7 @@ import numpy as np
 from mujoco_playground._src import mjx_env
 
 ROOT_PATH = epath.Path(__file__).parent
-FLAT_TERRAIN_XML = ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml"
+FLAT_TERRAIN_XML = ROOT_PATH / "xmls" / "walk_turn_spot.xml"
 
 ACCELEROMETER_SENSOR = "accelerometer"
 GLOBAL_LINVEL_SENSOR = "global_linvel"
@@ -85,10 +85,10 @@ def default_config() -> config_dict.ConfigDict:
                 action_rate=-0.01,
                 energy=-0.001,
                 # Feet.
-                # feet_clearance=-2.0,
-                # feet_height=-0.2,
-                # feet_slip=-0.1,
-                # feet_air_time=0.1,
+                feet_clearance=-2.0,
+                feet_height=-0.2,
+                feet_slip=-0.1,
+                feet_air_time=0.1,
             ),
             tracking_sigma=0.5,
             max_foot_height=0.1,
@@ -275,7 +275,7 @@ class Walk(mjx_env.MjxEnv):
         info = {
             "rng": rng,
             "command": cmd,
-            "actual_vel": jp.zeros(3),  # 实际速度 (初始化为零向量)
+            "global_vel": jp.zeros(3),  # 实际速度 (初始化为零向量)
             "last_act": jp.zeros(self.mjx_model.nu),
             "last_last_act": jp.zeros(self.mjx_model.nu),
             "feet_air_time": jp.zeros(4),
@@ -288,9 +288,9 @@ class Walk(mjx_env.MjxEnv):
         for k in self._config.reward_config.scales.keys():
             metrics[f"reward/{k}"] = jp.zeros(())
         metrics["swing_peak"] = jp.zeros(())
-        metrics["actual_vel_x"] = jp.zeros(())
-        metrics["actual_vel_y"] = jp.zeros(())
-        metrics["actual_yaw"] = jp.zeros(())
+        metrics["global_vel_x"] = jp.zeros(())
+        metrics["global_vel_y"] = jp.zeros(())
+        metrics["global_yaw"] = jp.zeros(())
         metrics["r_deviation"] = jp.zeros(())   
 
         obs = self._get_obs(data, info)
@@ -333,7 +333,7 @@ class Walk(mjx_env.MjxEnv):
         }
         reward = sum(rewards.values()) * self.dt
 
-        state.info["actual_vel"] = self.get_global_linvel(data)  #data.cvel[self._torso_body_id][3:]
+        state.info["global_vel"] = self.get_global_linvel(data)  #data.cvel[self._torso_body_id][3:]
         state.info["last_last_act"] = state.info["last_act"] 
         state.info["last_act"] = action
         state.info["feet_air_time"] *= ~contact
@@ -344,10 +344,10 @@ class Walk(mjx_env.MjxEnv):
         for k, v in rewards.items():
             state.metrics[f"reward/{k}"] = v
         state.metrics["swing_peak"] = jp.mean(state.info["swing_peak"])
-        state.metrics["actual_vel_x"] = state.info["actual_vel"][0]
-        state.metrics["actual_vel_y"] = state.info["actual_vel"][1]
-        state.metrics["actual_yaw"] = self.get_global_angvel(data)[2]
-        state.metrics["r_deviation"] = jp.linalg.norm(state.info["position"][:2])
+        state.metrics["global_vel_x"] = state.info["global_vel"][0]
+        state.metrics["global_vel_y"] = state.info["global_vel"][1]
+        state.metrics["global_yaw"] = self.get_global_angvel(data)[2]
+        state.metrics["r_deviation"] = self.r_deviation(data)
 
 
         done = done.astype(reward.dtype)
@@ -472,7 +472,7 @@ class Walk(mjx_env.MjxEnv):
             # "ang_vel_xy": self._cost_ang_vel_xy(self.get_global_angvel(data)),
             # "orientation": self._cost_orientation(self.get_upvector(data)),
             "spin_speed": self._reward_spin_speed(self.get_global_angvel(data)),
-            "stay_center": self._cost_stay_center(data),
+            "stay_center": self._cost_r_deviation(data),
             "termination": self._cost_termination(done),
             # "pose": self._reward_pose(data.qpos[self._legs_qpos_idx]),
             "torques": self._cost_torques(data.actuator_force),
@@ -480,16 +480,16 @@ class Walk(mjx_env.MjxEnv):
                 action, info["last_act"], info["last_last_act"]
             ),
             "energy": self._cost_energy(data.qvel[self._legs_qvel_idx], data.actuator_force),
-            # "feet_slip": self._cost_feet_slip(data, contact, info),
-            # "feet_clearance": self._cost_feet_clearance(data),
-            # "feet_height": self._cost_feet_height(
-            #     info["swing_peak"], first_contact, info
-            # ),
-            # "feet_air_time": self._reward_feet_air_time(
-            #     info["feet_air_time"], first_contact, info["command"]
-            #     #self.get_local_linvel(data)
-            #     #info["command"]
-            # ),
+            "feet_slip": self._cost_feet_slip(data, contact, info),
+            "feet_clearance": self._cost_feet_clearance(data),
+            "feet_height": self._cost_feet_height(
+                info["swing_peak"], first_contact, info
+            ),
+            "feet_air_time": self._reward_feet_air_time(
+                info["feet_air_time"], first_contact, info["command"]
+                #self.get_local_linvel(data)
+                #info["command"]
+            ),
             "dof_pos_limits": self._cost_joint_pos_limits(data.qpos[self._legs_qpos_idx])
         }
 
@@ -524,24 +524,9 @@ class Walk(mjx_env.MjxEnv):
         wz = global_angvel[2]
         return wz  # 或者 jp.square(wz) 更平滑
 
-    def _cost_stay_center(self, data: mjx.Data) -> jax.Array:
-        # 1) 原始的 site 世界坐标（当前你在用的“position”传感器）
-        site_world = self.get_position(data)  # shape: (3,)
-
-        # 2) 机体局部 +x 轴在世界系下的方向（已有 forwardvector 传感器）
-        x_axis_world = mjx_env.get_sensor_data(self.mj_model, data, "forwardvector")  # shape: (3,)
-
-        # 3) 读取该 site 的局部 x 偏移（不硬编码 0.1881；模型变了也能适配）
-        imu_x = self._mj_model.site_pos[self._imu_site_id][0]
-
-        # 4) 把 site 的世界坐标修正回“真正圆心”的世界坐标
-        center_world = site_world - imu_x * x_axis_world
-
-        # 5) 用修正后的圆心做距离与速度惩罚
-        x, y = center_world[0], center_world[1]
-        dist_sq = x * x + y * y
-        return dist_sq 
-
+    def _cost_r_deviation(self, data: mjx.Data) -> jax.Array:
+        r_deviation = self.r_deviation(data)
+        return jp.square(r_deviation)
     
     # Base-related rewards.
 
@@ -556,20 +541,6 @@ class Walk(mjx_env.MjxEnv):
     # def _cost_orientation(self, torso_zaxis: jax.Array) -> jax.Array:
     #     # Penalize non flat base orientation.
     #     return jp.sum(jp.square(torso_zaxis[:2]))
-
-    def _cost_orientation(self, data: mjx.Data) -> jax.Array:
-        """
-        Penalize the robot's yaw deviation from the global forward direction.
-        """
-        # 获取前向方向向量 [x, y, z]
-        forward_vec = self.get_orientation(data)
-        
-        # 计算 yaw（水平面投影的角度）
-        # 理想前向方向是 [1, 0, 0]（x 轴）
-        yaw = jp.arctan2(forward_vec[1], forward_vec[0])
-        
-        # 惩罚 yaw 偏离 0
-        return jp.square(yaw)
     
     # Energy related rewards.
 
@@ -687,6 +658,24 @@ class Walk(mjx_env.MjxEnv):
         vals= jp.squeeze(data.sensordata[self._foot_touch_sensor_adr], axis=-1)
         return vals > 1e-3
     
+    def r_deviation(self, data: mjx.Data) -> jax.Array:
+        # 1) 原始的 site 世界坐标（当前你在用的“position”传感器）
+        site_world = self.get_position(data)  # shape: (3,)
+
+        # 2) 机体局部 +x 轴在世界系下的方向（已有 forwardvector 传感器）
+        x_axis_world = mjx_env.get_sensor_data(self.mj_model, data, "forwardvector")  # shape: (3,)
+
+        # 3) 读取该 site 的局部 x 偏移（不硬编码 0.1881；模型变了也能适配）
+        imu_x = self._mj_model.site_pos[self._imu_site_id][0]
+
+        # 4) 把 site 的世界坐标修正回“真正圆心”的世界坐标
+        center_world = site_world - imu_x * x_axis_world
+
+        # 5) 用修正后的圆心做距离与速度惩罚
+        x, y = center_world[0], center_world[1]
+        dist = jp.linalg.norm(jp.array([x, y]))
+        return dist
+
     @property
     def xml_path(self) -> str:
         return self._xml_path

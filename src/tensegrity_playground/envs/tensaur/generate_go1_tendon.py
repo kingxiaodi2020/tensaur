@@ -14,6 +14,7 @@ fixed_shoulder = True  # if lock hip_roll joints
 
 DEFAULT_CONFIG = {
     "output_path": ROOT_PATH / "xmls" / "scene_tensegrity_quadruped.xml",
+    "fixed_shoulder": fixed_shoulder,
     "sim": {
         "timestep": 0.002,
         "integrator": "implicitfast",  # 改为 "rk4" 或 "euler"
@@ -22,7 +23,7 @@ DEFAULT_CONFIG = {
     },
     "defaults": {
         "tq1": {
-            "geom": {"condim": 3, "contype": 0, "conaffinity": 1},
+            "geom": {"condim": 3, "contype": 1, "conaffinity": 0},
             "joint": {
                 "type": "hinge",
                 "limited": True,
@@ -52,12 +53,12 @@ DEFAULT_CONFIG = {
                 "density": 1750.0,  
                 "rgba": [0.8, 0.6, 0.4, 1],
                 "group": 1,
-                "conaffinity": 1,
+                "conaffinity": 0,
             },
         },
         "lateral_tendon": {
             "tendon": {
-                "stiffness": 5000,
+                "stiffness": 7000,
                 "damping": 	5,
                 "frictionloss": 0.02,
                 "width": 0.002,
@@ -66,7 +67,7 @@ DEFAULT_CONFIG = {
         },
         "diagonal_tendon": {
             "tendon": {
-                "stiffness": 3000,
+                "stiffness": 7500,
                 "damping": 5,
                 "frictionloss": 0.02,
                 "width": 0.002,
@@ -81,11 +82,11 @@ DEFAULT_CONFIG = {
         "foot_radius": 0.023,       # 足端球半径
     },
     "spine": {
-        "num_segments": 2,
-        "segment_spacing": 0.1,
+        "num_segments": 3,
+        "segment_spacing": 0.05,
         "initial_z": 0.6,  # 腿变长后抬高初始质心高度以避免穿地 0.474 站直 0.38
         "alpha": np.pi / 4,
-        "alpha_length": 0.08,
+        "alpha_length": 0.05,
         "beta": np.pi / 4,
         "beta_length": 0.08,
         "lateral_pretension": 0.90,
@@ -98,19 +99,19 @@ DEFAULT_CONFIG = {
     },
     "actuation": {
         # 参考 go1 的关节范围与力矩限制（位置型执行器的 forcerange）
-        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7*0.2, 23.7*0.2]},    #-0.863, 0.863
-        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7*0.2, 23.7*0.2]},
-        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55*0.2, 35.55*0.2]},
+        "hip_roll": {"ctrlrange": [-0.863, 0.863], "forcerange": [-23.7*0.3, 23.7*0.3]},
+        "hip_pitch": {"ctrlrange": [-0.686, 4.501], "forcerange": [-23.7*0.3, 23.7*0.3]},
+        "knee": {"ctrlrange": [-2.818, -0.888], "forcerange": [-35.55*0.3, 35.55*0.3]},
     },
     "legs": {"z_offset": -0.025},
-    "keyframe": {"leg_qpos": [-0, 0.9, -1.55, 0, 0.9, -1.55]},    #[-0.06, 0.9, -1.55, 0.06, 0.9, -1.55]
+    "keyframe": {"leg_qpos": [-0, 0.9, -1.55, 0, 0.9, -1.55]},
 
     "terrain": {
         "mode": mode,   # "plane" | "uneven"
         # mode="uneven"：
         "hfield_png": "terrain_go1_11m_gradual2.png",
         "rx": 7.5,         # half length （m）  -> (-1,10)
-        "ry": 1.5,         # half width（m）  -> 总宽 3 m
+        "ry": 4,         # half width（m）  -> 总宽 3 m
         "hz": 0.40,        # vertical height scale（m）
         "base": 0.001,     # base height offset（m）
         "center_x": 5.8,   # center x position（m）
@@ -183,7 +184,7 @@ def add_terrain(model, config):
         "geom",
         name="floor",
         type="plane",
-        size=[20, 20, 0.1],
+        size=[50, 50, 0.1],
         pos=[0, 0, 0],
         material="grid",
     )
@@ -416,7 +417,7 @@ def add_legs(model, config, front_offset=0.0, rear_offset=0.0):
     z = config["legs"]["z_offset"]
     leg_segment = config["spine"]["num_segments"] - 1
 
-    for idx, segment in [(0, "front"), (leg_segment, "hind")]:
+    for idx, segment in [(leg_segment, "front"), (0, "hind")]:
         name = f"vertebrae_{idx}"
         body = model.find("body", name)
 
@@ -456,7 +457,7 @@ def add_leg(parent_body, prefix, base_pos):
     knee_range = act_cfg["knee"]["ctrlrange"]
 
     # lock hip_roll joint if specified
-    if fixed_shoulder:
+    if DEFAULT_CONFIG.get("fixed_shoulder", False):
         hip_roll_range = [0.0, 1e-20]
 
     # 髋外展段（沿 x 轴）
@@ -518,6 +519,7 @@ def add_leg(parent_body, prefix, base_pos):
         name=f"{prefix}_foot_geom",
         type="sphere",
         size=[foot_r],
+        contype=1,
         conaffinity=1,
         dclass="leg_geom",
         friction=[0.8, 0.02, 0.01],
@@ -527,7 +529,7 @@ def add_leg(parent_body, prefix, base_pos):
 
 def add_actuation(model, config):
     act_cfg = config["actuation"]
-    lock_hip_roll = fixed_shoulder
+    lock_hip_roll = config.get("fixed_shoulder", False)
 
     for leg in ["fr", "fl", "rr", "rl"]:
         for joint_name in ["hip_roll", "hip_pitch", "knee"]:
@@ -630,6 +632,14 @@ def add_sensors(model, config):
             site=f"{leg}_foot_site",
         )
 
+    # 每个脚的受力传感器
+    for leg in ["fr", "fl", "rr", "rl"]:
+        sensor.add(
+            "force",
+            name=f"{leg}_foot_force",
+            site=f"{leg}_foot_site",
+        )
+
 
 def generate_keyframe(model, config):
     n = config["spine"]["num_segments"]
@@ -654,7 +664,7 @@ def generate_keyframe(model, config):
 def add_target_visualization(model, config, target_distance_bl=15.0, body_length=GO1_HIP_TO_HIP_LENGTH, tolearance=0.1):
     target_x = target_distance_bl * body_length  # 固定在 15*0.3762 = 5.643m 处
     model.worldbody.add(
-        "geom",
+        "site",
         name="target_marker0",
         type="sphere",
         size=[tolearance],
@@ -663,17 +673,8 @@ def add_target_visualization(model, config, target_distance_bl=15.0, body_length
     )
 
     model.worldbody.add(
-        "geom",
+        "site",
         name="target_marker1",
-        type="sphere",
-        size=[tolearance],
-        pos=[3, 0.0, 0.3],  # 位置写死在XML中
-        rgba=[1, 0, 0, 0.7],
-    )    
-
-    model.worldbody.add(
-        "geom",
-        name="target_marker2",
         type="sphere",
         size=[tolearance],
         pos=[5, 0.0, 0.3],  # 位置写死在XML中
@@ -681,11 +682,65 @@ def add_target_visualization(model, config, target_distance_bl=15.0, body_length
     )    
 
     model.worldbody.add(
-        "geom",
+        "site",
+        name="target_marker2",
+        type="sphere",
+        size=[tolearance],
+        pos=[10, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+    model.worldbody.add(
+        "site",
         name="target_marker3",
         type="sphere",
         size=[tolearance],
-        pos=[8, 0.0, config["spine"]["initial_z"]-0.02],  # 位置写死在XML中
+        pos=[15, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )        
+
+    model.worldbody.add(
+        "site",
+        name="target_marker4",
+        type="sphere",
+        size=[tolearance],
+        pos=[20, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+    
+    model.worldbody.add(
+        "site",
+        name="target_marker5",
+        type="sphere",
+        size=[tolearance],
+        pos=[25, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )        
+
+    model.worldbody.add(
+        "site",
+        name="target_marker6",
+        type="sphere",
+        size=[tolearance],
+        pos=[30, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+    model.worldbody.add(
+        "site",
+        name="target_marker7",
+        type="sphere",
+        size=[tolearance],
+        pos=[35, 0.0, 0.3],  # 位置写死在XML中
+        rgba=[1, 0, 0, 0.7],
+    )
+
+    model.worldbody.add(
+        "site",
+        name="target_marker8",
+        type="sphere",
+        size=[tolearance],
+        pos=[40, 0.0, 0.3],  # 位置写死在XML中
         rgba=[1, 0, 0, 0.7],
     )
 
@@ -781,6 +836,11 @@ def build_config_from_genes(genes: dict, individual_id: int, output_path: str | 
     # -------- 写 defaults --------
     d = cfg["defaults"]
 
+    common = {
+        "frictionloss": d["lateral_tendon"]["tendon"]["frictionloss"],
+        "width": d["lateral_tendon"]["tendon"]["width"],
+    }
+
     # 保留原总类（与现有 XML 兼容）:contentReference[oaicite:0]{index=0}
     d["lateral_tendon"]["tendon"]["stiffness"]  = lat_all_stiff
     d["lateral_tendon"]["tendon"]["damping"]    = lat_all_damp
@@ -788,30 +848,33 @@ def build_config_from_genes(genes: dict, individual_id: int, output_path: str | 
     d["diagonal_tendon"]["tendon"]["damping"]   = diag_all_damp
 
     # 4× lateral
-    d["lateral_top"]    = {"tendon": {"stiffness": lat_top_stiff,    "damping": lat_top_damp}}
-    d["lateral_bottom"] = {"tendon": {"stiffness": lat_bottom_stiff, "damping": lat_bottom_damp}}
-    d["lateral_left"]   = {"tendon": {"stiffness": lat_left_stiff,   "damping": lat_left_damp}}
-    d["lateral_right"]  = {"tendon": {"stiffness": lat_right_stiff,  "damping": lat_right_damp}}
+    d["lateral_top"]    = {"tendon": {"stiffness": lat_top_stiff,    "damping": lat_top_damp, **common}}
+    d["lateral_bottom"] = {"tendon": {"stiffness": lat_bottom_stiff, "damping": lat_bottom_damp, **common}}
+    d["lateral_left"]   = {"tendon": {"stiffness": lat_left_stiff,   "damping": lat_left_damp, **common}}
+    d["lateral_right"]  = {"tendon": {"stiffness": lat_right_stiff,  "damping": lat_right_damp, **common}}
 
     # 4× diagonal（用配对名防混淆）
-    d["diag_a1b1"] = {"tendon": {"stiffness": diag_a1b1_stiff, "damping": diag_a1b1_damp}}
-    d["diag_a2b2"] = {"tendon": {"stiffness": diag_a2b2_stiff, "damping": diag_a2b2_damp}}
-    d["diag_a1b2"] = {"tendon": {"stiffness": diag_a1b2_stiff, "damping": diag_a1b2_damp}}
-    d["diag_a2b1"] = {"tendon": {"stiffness": diag_a2b1_stiff, "damping": diag_a2b1_damp}}
+    d["diag_a1b1"] = {"tendon": {"stiffness": diag_a1b1_stiff, "damping": diag_a1b1_damp, **common}}
+    d["diag_a2b2"] = {"tendon": {"stiffness": diag_a2b2_stiff, "damping": diag_a2b2_damp, **common}}
+    d["diag_a1b2"] = {"tendon": {"stiffness": diag_a1b2_stiff, "damping": diag_a1b2_damp, **common}}
+    d["diag_a2b1"] = {"tendon": {"stiffness": diag_a2b1_stiff, "damping": diag_a2b1_damp, **common}}
+
+    # ✅ 允许外部覆盖 terrain mode
+    if "terrain_mode" in genes:
+        cfg["terrain"]["mode"] = genes["terrain_mode"]
 
     # 输出路径
     cfg["output_path"] = (ROOT_PATH / "xmls" / f"tensegrity_{individual_id}.xml") if output_path is None else Path(output_path)
+    print(f"[Info] Generated XML path: {cfg['output_path']}")
     return cfg
 
 
 if __name__ == "__main__":
     example_genes = {
-        "lateral_stiffness": 5000,
-        # "lateral_top_stiffness": 10000,
-        # "lateral_bottom_stiffness": 1000,
-        "lateral_left_stiffness": 0,
-        "lateral_right_stiffness": 0,
-        "diagonal_stiffness": 5000,
+        # "lateral_stiffness": 5000,
+        "lateral_verti_stiffness": 3000,
+        "lateral_hori_stiffness": 10000,
+        "diagonal_stiffness": 10000,
     }
 
     config = build_config_from_genes(example_genes, individual_id=0)    

@@ -1,7 +1,6 @@
 """
 路径管理器 - 统一管理项目中的所有路径，确保跨环境兼容
 """
-from email.mime import base
 from pathlib import Path
 from typing import Optional
 import os
@@ -100,15 +99,6 @@ class PathManager:
         else:
             # 如果没找到，返回预期路径
             return checkpoint_dir / "latest" / "metrics_final.json"
-        
-    def get_default_logging_dir(self, individual_id: str) -> Path:
-        """
-        默认的日志根目录：<project_root>/logs/ind_<id>/
-        """
-        base = self.logs_dir / f"ind_{individual_id}"
-        base.mkdir(parents=True, exist_ok=True)
-        return base
-
 
 # 全局路径管理器实例
 path_manager = PathManager()

@@ -47,59 +47,59 @@
 
 #     print("---")
 
-# import mujoco
-# import numpy as np
-
-# # 加载模型
-# model = mujoco.MjModel.from_xml_path("/media/di/4441-E469/tensaur-main/src/tensegrity_playground/envs/tensaur/xmls/scene_tensegrity_quadruped.xml")
-# data = mujoco.MjData(model)
-# total_mass = 0
-
-# # 遍历所有部件，打印质量
-# for i in range(model.nbody):
-#     # 从名称字节数组中获取字符串
-#     name_adr = model.name_bodyadr[i]
-    
-#     # 从字节流中提取名称直到遇到 null 字符
-#     end_idx = model.names.find(b'\0', name_adr)
-#     if end_idx == -1:  # 没找到 null 终止符，取到末尾
-#         body_name = model.names[name_adr:].decode('utf-8')
-#     else:
-#         body_name = model.names[name_adr:end_idx].decode('utf-8')
-    
-#     body_mass = model.body_mass[i]
-
-#     total_mass += body_mass
-
-#     print(f"Body: {body_name}, Mass: {body_mass}")
-
-# print(f"Total Mass: {total_mass}")
-
-import mujoco as mj
+import mujoco
 import numpy as np
 
-xml = "/media/di/4441-E469/tensaur-main/src/tensegrity_playground/envs/tensaur/xmls/scene_tensegrity_quadruped.xml"
+# 加载模型
+model = mujoco.MjModel.from_xml_path(r"/media/di/4441-E469/tensaur-main/src/tensegrity_playground/envs/tensaur/xmls/tensegrity_0.xml")
+data = mujoco.MjData(model)
+total_mass = 0
 
-m = mj.MjModel.from_xml_path(xml)
-d = mj.MjData(m)
+# 遍历所有部件，打印质量
+for i in range(model.nbody):
+    # 从名称字节数组中获取字符串
+    name_adr = model.name_bodyadr[i]
+    
+    # 从字节流中提取名称直到遇到 null 字符
+    end_idx = model.names.find(b'\0', name_adr)
+    if end_idx == -1:  # 没找到 null 终止符，取到末尾
+        body_name = model.names[name_adr:].decode('utf-8')
+    else:
+        body_name = model.names[name_adr:end_idx].decode('utf-8')
+    
+    body_mass = model.body_mass[i]
 
-# 如果要读 keyframe 姿态，先应用 keyframe，再 forward
-# kid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_KEY, "stable_pose")
-# if kid >= 0: mj.mj_resetDataKeyframe(m, d, kid)
+    total_mass += body_mass
 
-mj.mj_forward(m, d)
+    print(f"Body: {body_name}, Mass: {body_mass}")
 
-# 找到 sensor 的索引与切片区间
-sid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_SENSOR, "position")
-adr = m.sensor_adr[sid]            # 起始索引
-dim = m.sensor_dim[sid]            # = 3 for framepos
+print(f"Total Mass: {total_mass}")
 
-pos_world = np.array(d.sensordata[adr:adr+dim], copy=True)
-print("framepos(position) =", pos_world)
+# import mujoco as mj
+# import numpy as np
 
-# 可做一致性校验：和 site_xpos 对比应一致
-site_id = mj.mj_name2id(m, mj.mjtObj.mjOBJ_SITE, "com_vertebrae_1")
-print("site_xpos =", d.site_xpos[site_id])
+# xml = "/media/di/4441-E469/tensaur-main/src/tensegrity_playground/envs/tensaur/xmls/scene_tensegrity_quadruped.xml"
+
+# m = mj.MjModel.from_xml_path(xml)
+# d = mj.MjData(m)
+
+# # 如果要读 keyframe 姿态，先应用 keyframe，再 forward
+# # kid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_KEY, "stable_pose")
+# # if kid >= 0: mj.mj_resetDataKeyframe(m, d, kid)
+
+# mj.mj_forward(m, d)
+
+# # 找到 sensor 的索引与切片区间
+# sid = mj.mj_name2id(m, mj.mjtObj.mjOBJ_SENSOR, "position")
+# adr = m.sensor_adr[sid]            # 起始索引
+# dim = m.sensor_dim[sid]            # = 3 for framepos
+
+# pos_world = np.array(d.sensordata[adr:adr+dim], copy=True)
+# print("framepos(position) =", pos_world)
+
+# # 可做一致性校验：和 site_xpos 对比应一致
+# site_id = mj.mj_name2id(m, mj.mjtObj.mjOBJ_SITE, "com_vertebrae_1")
+# print("site_xpos =", d.site_xpos[site_id])
 
 # import mujoco
 # import jax.numpy as jp

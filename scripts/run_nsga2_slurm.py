@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 import os, json, time, subprocess, argparse, sys
 from pathlib import Path
+from scipy.stats import qmc
+from scipy.spatial.distance import pdist
+import numpy as np
 
 # === 导入 NSGA-II 相关模块 ===
 from tensegrity_playground.envs.evolution.individual import create_random_individual, Individual
@@ -124,19 +127,78 @@ def write_manifest(run_tag: str, gen_idx: int, individuals, is_parent: bool = Tr
     manifest_path.write_text(json.dumps(manifest, indent=2))
     return manifest_path
 
-def make_initial_population(pop_size: int, gene_ranges, gen_idx: int):
-    """创建初始种群（未评估）"""
-    individuals = []
-    for i in range(pop_size):
-        ind_id = f"gen{gen_idx:03d}_parent_{i:03d}"  # ✅ 明确标识为父代
-        ind = create_random_individual(individual_id=ind_id, generation=gen_idx, gene_ranges=gene_ranges)
-        individuals.append({
-            "individual_id": ind.individual_id, 
-            "genes": ind.genes,
-            "objectives": None
-        })
-    return individuals
+# def make_initial_population(pop_size: int, gene_ranges, gen_idx: int):
+#     """创建初始种群（未评估）"""
+#     individuals = []
+#     for i in range(pop_size):
+#         ind_id = f"gen{gen_idx:03d}_parent_{i:03d}"  # ✅ 明确标识为父代
+#         ind = create_random_individual(individual_id=ind_id, generation=gen_idx, gene_ranges=gene_ranges)
+#         individuals.append({
+#             "individual_id": ind.individual_id, 
+#             "genes": ind.genes,
+#             "objectives": None
+#         })
+#     return individuals
 
+def make_initial_population(pop_size: int, gene_ranges, gen_idx: int):
+    """使用Maximin策略创建初始种群，最大化点之间的最小距离"""
+    discrete_genes = {}
+    continuous_genes = {}
+    
+    # 分离离散基因和连续基因
+    for gene_name, (min_val, max_val) in gene_ranges.items():
+        if gene_name == 'num_segments':
+            discrete_genes[gene_name] = (min_val, max_val)
+        else:
+            continuous_genes[gene_name] = (min_val, max_val)
+    
+    individuals = []
+    
+    if continuous_genes:
+        n_dims = len(continuous_genes)
+        
+        # ✅ 生成多个候选样本集，选择最优的（Maximin策略）
+        best_samples = None
+        best_min_dist = -1
+        
+        for _ in range(10):  # 尝试10次
+            sampler = qmc.LatinHypercube(d=n_dims)
+            candidate = sampler.random(n=pop_size)
+            
+            # 计算最小成对距离
+            min_dist = pdist(candidate).min()
+            
+            if min_dist > best_min_dist:
+                best_min_dist = min_dist
+                best_samples = candidate
+        
+        samples = best_samples
+        gene_names = list(continuous_genes.keys())
+        
+        # ✅ 为每个个体分配基因值
+        for i in range(pop_size):
+            ind_id = f"gen{gen_idx:03d}_parent_{i:03d}"  # 保持 NSGA-II 的命名格式
+            genes = {}
+            
+            # 连续基因：从 LHS 样本映射到实际范围
+            for j, gene_name in enumerate(gene_names):
+                min_val, max_val = continuous_genes[gene_name]
+                genes[gene_name] = float(min_val + samples[i, j] * (max_val - min_val))
+            
+            # 离散基因：随机采样
+            for gene_name, (min_val, max_val) in discrete_genes.items():
+                genes[gene_name] = int(np.random.randint(int(min_val), int(max_val) + 1))
+            
+            individuals.append({
+                "individual_id": ind_id,
+                "genes": genes,
+                "objectives": None  # NSGA-II 需要 objectives 字段
+            })
+    
+    print(f"[init] Created {pop_size} individuals using LHS + Maximin (min_dist={best_min_dist:.4f})")
+    
+    return individuals
+    
 def submit_array(manifest_path: Path, run_tag: str, partition: str, concurrency: int):
     """提交 worker 数组任务（不变）"""
     N = len(json.loads(manifest_path.read_text())["individuals"])
