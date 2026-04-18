@@ -1,0 +1,837 @@
+<mujoco model="Pleurobot_TensegritySpine">
+  <!--
+  =========================================================================
+  Pleurobot + Tensegrity Spine  (parametric rebuild, generate_go1.py style)
+  =========================================================================
+  SPINE PARAMETERS:
+    num_segments    = 3
+    segment_spacing = 0.07 m
+    alpha = beta    = pi/4
+    alpha_length    = 0.10 m  → a-arm: dx=-0.07071, dz=±0.07071
+    beta_length     = 0.08 m  → b-arm: dx=+0.05657, dy=±0.05657
+    lateral_pretension  = 0.90
+    diagonal_pretension = 0.90
+
+  PLEUROBOT FIXED LENGTH (front-hip to rear-hip):
+    front hip attach x = body_01@0.2 + leg_offset@0.0635 = 0.2635  (Pleurobot root frame)
+    rear  hip attach x = body_06@0.71222 + leg_offset@0.06815 = 0.78037
+    fixed_length = 0.51687 m
+
+  SPINE LAYOUT (symmetric about center x=0.52194):
+    chain_len   = 2 × 0.07 = 0.14 m
+    extra_total = 0.51687 - 0.14 = 0.37687 m
+    front_extra = rear_extra = 0.18843 m  (rigid rod each end)
+
+    Vertebra centers (Pleurobot root x):
+      vertebrae_0 : 0.52194 - 0.07 = 0.45194  (front side, welded to body_01)
+      vertebrae_1 : 0.52194 + 0.00 = 0.52194  (middle, free body in worldbody)
+      vertebrae_2 : 0.52194 + 0.07 = 0.59194  (rear side, welded to body_06)
+
+  RIGID CONNECTION (weld = no joint):
+    vertebrae_0 in body_01 frame:
+      x = 0.45194 - 0.2 = 0.25194
+      front hip attach (body_01 frame) = 0.0635
+      front_spacer rod: fromto [0,0,0]→[-0.18843,0,0]
+        tip = 0.25194 - 0.18843 = 0.06351 ≈ 0.0635 ✓
+
+    vertebrae_2 in body_06 frame:
+      rear hip attach (body_06 frame) = 0.06815
+      vertebrae_2 x = hip_attach_x - rear_extra
+                    = 0.06815 - 0.18843 = -0.12028
+      rear_spacer rod: fromto [0,0,0]→[+0.18843,0,0]
+        tip = -0.12028 + 0.18843 = 0.06815 ✓
+
+  TENDON SPRINGLENGTHS:
+    lateral  = 0.07 × 0.90 = 0.0630 m
+    diagonal = 0.10715 × 0.90 = 0.09643 m
+  =========================================================================
+  -->
+
+  <compiler angle="radian" boundmass="1e-06" boundinertia="1e-12"/>
+  <option timestep="0.001" iterations="1000"/>
+  <size njmax="4096" nconmax="4096"/>
+
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+    <quality shadowsize="1024"/>
+    <map force="1" torque="1" znear="0.0001" zfar="3" shadowscale="0.3"/>
+    <scale forcewidth="0.01" contactwidth="0.03" contactheight="0.01" connect="0.01"
+           com="0.01" camera="0.1" light="0.1" selectpoint="0.01" jointlength="0.15"
+           jointwidth="0.005" actuatorlength="0.01" actuatorwidth="0.01"
+           framelength="0.01" framewidth="0.01" constraint="0.01" slidercrank="0.01"/>
+  </visual>
+
+  <statistic meaninertia="1" meanmass="1" meansize="1"/>
+
+  <default>
+    <default class="/">
+      <default class="tq1">
+        <joint type="hinge" limited="true" armature="0.005" damping="0.5" frictionloss="0.001"/>
+        <geom contype="1" conaffinity="0" condim="3"/>
+        <default class="vertebra_geom">
+          <geom type="capsule" group="0" size="0.015" rgba="0.8 0.6 0.4 1" density="1500" contype="1" conaffinity="1"/>
+        </default>
+        <default class="lateral_tendon">
+          <tendon frictionloss="0.02" width="0.002" rgba="1 0 0 0.6" stiffness="10" damping="5"/>
+        </default>
+        <default class="diagonal_tendon">
+          <tendon frictionloss="0.02" width="0.002" rgba="0 0 1 0.6" stiffness="10" damping="5"/>
+        </default>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <texture type="2d" name="texture_grid" builtin="checker" mark="edge"
+             rgb1="0.1 0.2 0.3" rgb2="0.2 0.3 0.4" markrgb="0.2 0.3 0.4"
+             width="300" height="300"/>
+    <texture type="skybox" name="skybox" builtin="gradient" mark="random"
+             rgb1="0.4 0.6 0.8" rgb2="0 0 0" markrgb="1 1 1" width="800" height="4800"/>
+    <material name="material_grid" texture="texture_grid" texuniform="true" reflectance="0.2"/>
+
+    <mesh name="mesh_link_body_00_collision" file="link_body_00_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_00_visual"    file="link_body_00.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_01_collision" file="link_body_01_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_01_visual"    file="link_body_01.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_06_collision" file="link_body_06_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_06_visual"    file="link_body_06.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_0_collision" file="link_leg_0_L_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_0_visual"    file="link_leg_0_L_0.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_1_collision" file="link_leg_0_L_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_1_visual"    file="link_leg_0_L_1.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_2_collision" file="link_leg_0_L_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_2_visual"    file="link_leg_0_L_2.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_3_collision" file="link_leg_0_L_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_3_visual"    file="link_leg_0_L_3.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_0_collision" file="link_leg_0_R_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_0_visual"    file="link_leg_0_R_0.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_1_collision" file="link_leg_0_R_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_1_visual"    file="link_leg_0_R_1.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_2_collision" file="link_leg_0_R_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_2_visual"    file="link_leg_0_R_2.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_3_collision" file="link_leg_0_R_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_3_visual"    file="link_leg_0_R_3.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_0_collision" file="link_leg_1_L_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_0_visual"    file="link_leg_1_L_0.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_1_collision" file="link_leg_1_L_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_1_visual"    file="link_leg_1_L_1.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_2_collision" file="link_leg_1_L_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_2_visual"    file="link_leg_1_L_2.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_3_collision" file="link_leg_1_L_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_3_visual"    file="link_leg_1_L_3.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_0_collision" file="link_leg_1_R_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_0_visual"    file="link_leg_1_R_0.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_1_collision" file="link_leg_1_R_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_1_visual"    file="link_leg_1_R_1.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_2_collision" file="link_leg_1_R_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_2_visual"    file="link_leg_1_R_2.stl"           scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_3_collision" file="link_leg_1_R_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_3_visual"    file="link_leg_1_R_3.stl"           scale="0.001 0.001 0.001"/>
+  </asset>
+
+  <worldbody>
+    <body name="arena_flat">
+      <body name="floor">
+        <inertial pos="0 0 0" mass="1e-06" diaginertia="1e-12 1e-12 1e-12"/>
+    <geom name="floor_collision" size="100 100 1" type="plane"
+              group="2" friction="0 0 0" material="material_grid"/>
+        <geom name="floor_visual" size="100 100 1" type="plane"
+              contype="0" conaffinity="0" group="1" material="material_grid"/>
+      </body>
+      <body name="goal_marker" pos="2 0 0.05">
+        <geom name="goal_marker_geom" type="sphere" size="0.05" rgba="1 0 0 1" contype="0" conaffinity="0"/>
+      </body>
+    </body>
+
+    <!-- ================================================================
+         PLEUROBOT ROOT
+         ================================================================ -->
+  <body name="Pleurobot3_v41" pos="0 0 0.2" quat="0 0 0 1">
+      <joint name="root_Pleurobot3_v41" type="free" limited="false" actuatorfrclimited="false"/>
+      <camera name="camera_Pleurobot3_v41_0" pos="0.853553 -0.612372 0.707107"
+              quat="0.892399 0.369644 0.0990458 0.239118" mode="trackcom" fovy="70"/>
+      <camera name="camera_Pleurobot3_v41_1" pos="0 0 1" mode="trackcom" fovy="70"/>
+      <camera name="camera_Pleurobot3_v41_2" pos="0 -1 0.2"
+              quat="0.809017 0.587785 0 0" mode="trackcom" fovy="70"/>
+      <camera name="camera_Pleurobot3_v41_3" pos="-1 0 0.2"
+              quat="0.572061 0.415627 -0.415627 -0.572061" mode="trackcom" fovy="70"/>
+      <light name="light_animat" pos="-1 1 3" dir="0.301511 -0.301511 -0.904534"
+             cutoff="100" exponent="1" mode="trackcom"/>
+
+      <!-- IMU site at spine center in Pleurobot root frame -->
+      <site name="com_vertebrae_1" size="0.005" pos="0.52194 0 0"/>
+
+      <!-- link_body_00 -->
+      <body name="link_body_00" pos="0 0 -0.00025">
+        <inertial pos="0.0859678 -9.39563e-05 -0.0214195"
+                  quat="0.00091767 0.653093 -0.00130278 0.757276"
+                  mass="0.55" diaginertia="0.00142014 0.000999528 0.000709161"/>
+        <geom name="link_body_00_collision" type="mesh" conaffinity="0" group="2"
+              friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+              mesh="mesh_link_body_00_collision"/>
+        <geom name="link_body_00_visual" type="mesh" contype="0" conaffinity="0"
+              group="1" mesh="mesh_link_body_00_visual"/>
+
+        <!-- ============================================================
+             link_body_01  (FRONT shoulder girdle, x=0.2 in root)
+             ============================================================ -->
+        <body name="link_body_01" pos="0.2 0 0.00025">
+          <inertial pos="0.0579557 0.000108031 -0.0182171"
+                    quat="0.69471 0.693725 -0.133707 0.135078"
+                    mass="0.789922" diaginertia="0.00266104 0.0024395 0.00100587"/>
+     <joint name="joint_body_00" pos="0 0 0" axis="0 0 1"
+       limited="true" range="-1e-6 1e-6" damping="0.1"/>
+          <geom name="link_body_01_collision" type="mesh" conaffinity="0" group="2"
+                friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                mesh="mesh_link_body_01_collision"/>
+          <geom name="link_body_01_visual" type="mesh" contype="0" conaffinity="0"
+                group="1" mesh="mesh_link_body_01_visual"/>
+
+          <!-- FRONT LEGS -->
+          <body name="link_leg_0_L_0" pos="0.0635 -0.081 -0.0395">
+            <inertial pos="-0.000385507 0.0144271 -0.0248889"
+                      quat="0.538889 0.84227 -0.0128255 0.00391209"
+                      mass="0.281394" diaginertia="0.000150977 0.000141377 0.000126461"/>
+            <joint name="joint_leg_0_L_0" pos="0 0 0" axis="0 0 -1"
+                   limited="true" range="-1.5708 1.5708" damping="0.1"/>
+            <geom name="link_leg_0_L_0_collision" type="mesh" conaffinity="0" group="2"
+                  friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                  mesh="mesh_link_leg_0_L_0_collision"/>
+            <geom name="link_leg_0_L_0_visual" type="mesh" contype="0" conaffinity="0"
+                  group="1" mesh="mesh_link_leg_0_L_0_visual"/>
+            <body name="link_leg_0_L_1" pos="0.00025 0 -0.0235">
+              <inertial pos="-7.80075e-05 -0.0950586 0.035246"
+                        quat="0.99536 0.0961703 0.00106114 -0.00288401"
+                        mass="0.352182" diaginertia="0.000457556 0.000346982 0.000228726"/>
+              <joint name="joint_leg_0_L_1" pos="0 0 0" axis="1 0 0"
+                     limited="true" range="-1.5708 0.785398" damping="0.1"/>
+              <geom name="link_leg_0_L_1_collision" type="mesh" conaffinity="0" group="2"
+                    friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                    mesh="mesh_link_leg_0_L_1_collision"/>
+              <geom name="link_leg_0_L_1_visual" type="mesh" contype="0" conaffinity="0"
+                    group="1" mesh="mesh_link_leg_0_L_1_visual"/>
+              <body name="link_leg_0_L_2" pos="-0.00025 -0.12475 0.03375">
+                <inertial pos="-0.000502145 -0.0185309 0.0151607"
+                          quat="0.68881 0.00221149 0.0107882 0.724858"
+                          mass="0.216032" diaginertia="0.000104563 9.40795e-05 7.48375e-05"/>
+                <joint name="joint_leg_0_L_2" pos="0 0 0" axis="0 1 0"
+                       limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                <geom name="link_leg_0_L_2_collision" type="mesh" conaffinity="0" group="2"
+                      friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                      mesh="mesh_link_leg_0_L_2_collision"/>
+                <geom name="link_leg_0_L_2_visual" type="mesh" contype="0" conaffinity="0"
+                      group="1" mesh="mesh_link_leg_0_L_2_visual"/>
+                <body name="link_leg_0_L_3" pos="0 -0.0235 2.81e-05">
+                  <inertial pos="-2.37331e-05 -0.0706142 0.00743435"
+                            quat="0.49826 0.501031 -0.501234 0.499469"
+                            mass="0.0535637" diaginertia="0.00011299 0.000106806 1.29115e-05"/>
+                  <joint name="joint_leg_0_L_3" pos="0 0 0" axis="1 0 0"
+                         limited="true" range="0 2.0944" damping="0.1"/>
+                  <geom name="link_leg_0_L_3_collision" type="mesh" conaffinity="0" group="2"
+                        friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                        mesh="mesh_link_leg_0_L_3_collision"/>
+                  <geom name="link_leg_0_L_3_visual" type="mesh" contype="0" conaffinity="0"
+                        group="1" mesh="mesh_link_leg_0_L_3_visual"/>
+                </body>
+              </body>
+            </body>
+          </body>
+
+          <body name="link_leg_0_R_0" pos="0.0635 0.081 -0.0395">
+            <inertial pos="-0.000385507 -0.0144271 -0.0248889"
+                      quat="0.84227 0.538889 -0.00391209 0.0128255"
+                      mass="0.281394" diaginertia="0.000150977 0.000141377 0.000126461"/>
+            <joint name="joint_leg_0_R_0" pos="0 0 0" axis="0 0 1"
+                   limited="true" range="-1.5708 1.5708" damping="0.1"/>
+            <geom name="link_leg_0_R_0_collision" type="mesh" conaffinity="0" group="2"
+                  friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                  mesh="mesh_link_leg_0_R_0_collision"/>
+            <geom name="link_leg_0_R_0_visual" type="mesh" contype="0" conaffinity="0"
+                  group="1" mesh="mesh_link_leg_0_R_0_visual"/>
+            <body name="link_leg_0_R_1" pos="0.00025 0 -0.0235">
+              <inertial pos="4.17909e-05 0.0950387 0.0353633"
+                        quat="0.995892 -0.0905152 0.00220897 0.00102721"
+                        mass="0.352354" diaginertia="0.000462018 0.00034932 0.000228194"/>
+              <joint name="joint_leg_0_R_1" pos="0 0 0" axis="-1 0 0"
+                     limited="true" range="-0.785398 1.5708" damping="0.1"/>
+              <geom name="link_leg_0_R_1_collision" type="mesh" conaffinity="0" group="2"
+                    friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                    mesh="mesh_link_leg_0_R_1_collision"/>
+              <geom name="link_leg_0_R_1_visual" type="mesh" contype="0" conaffinity="0"
+                    group="1" mesh="mesh_link_leg_0_R_1_visual"/>
+              <body name="link_leg_0_R_2" pos="0 0.12475 0.03375">
+                <inertial pos="-0.000502145 0.0185309 0.0151607"
+                          quat="0.724858 0.0107882 0.00221149 0.68881"
+                          mass="0.216032" diaginertia="0.000104563 9.40795e-05 7.48375e-05"/>
+                <joint name="joint_leg_0_R_2" pos="0 0 0" axis="0 1 0"
+                       limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                <geom name="link_leg_0_R_2_collision" type="mesh" conaffinity="0" group="2"
+                      friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                      mesh="mesh_link_leg_0_R_2_collision"/>
+                <geom name="link_leg_0_R_2_visual" type="mesh" contype="0" conaffinity="0"
+                      group="1" mesh="mesh_link_leg_0_R_2_visual"/>
+                <body name="link_leg_0_R_3" pos="0 0.0235 2.81e-05">
+                  <inertial pos="-2.37566e-05 0.0706141 0.00743449"
+                            quat="0.501031 0.49826 -0.49947 0.501233"
+                            mass="0.0535638" diaginertia="0.00011299 0.000106806 1.29116e-05"/>
+                  <joint name="joint_leg_0_R_3" pos="0 0 0" axis="-1 0 0"
+                         limited="true" range="0 2.0944" damping="0.1"/>
+                  <geom name="link_leg_0_R_3_collision" type="mesh" conaffinity="0" group="2"
+                        friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                        mesh="mesh_link_leg_0_R_3_collision"/>
+                  <geom name="link_leg_0_R_3_visual" type="mesh" contype="0" conaffinity="0"
+                        group="1" mesh="mesh_link_leg_0_R_3_visual"/>
+                </body>
+              </body>
+            </body>
+          </body>
+
+          <!-- ============================================================
+               VERTEBRAE_0  —  rigidly welded to link_body_01 (no joint)
+               center is placed by strict segment spacing around spine center:
+                 x(root)=0.45194  -> x(body_01)=0.25194
+               front_spacer rod points toward front hip attach (negative x):
+                 [0,0,0]→[-0.18843,0,0]  tip reaches 0.0635 in body_01 frame ✓
+               Arms: a1/a2 in ±z, b1/b2 in ±y  (same as generate_go1.py)
+               ============================================================ -->
+          <body name="vertebrae_0" childclass="tq1" pos="0.25194 0 0">
+            <!-- front rigid rod to hip attachment -->
+            <geom name="front_spacer" class="vertebra_geom" fromto="0 0 0  -0.18843 0 0"/>
+            <!-- tetrahedral arms -->
+            <geom name="vertebrae_0_a1_geom" class="vertebra_geom" fromto="0 0 0   0.07071 0  0.07071"/>
+            <site name="vertebrae_0_a1" size="0.005" pos=" 0.07071 0  0.07071"/>
+            <geom name="vertebrae_0_a2_geom" class="vertebra_geom" fromto="0 0 0   0.07071 0 -0.07071"/>
+            <site name="vertebrae_0_a2" size="0.005" pos=" 0.07071 0 -0.07071"/>
+            <geom name="vertebrae_0_b1_geom" class="vertebra_geom" fromto="0 0 0  -0.05657  0.05657 0"/>
+            <site name="vertebrae_0_b1" size="0.005" pos="-0.05657  0.05657 0"/>
+            <geom name="vertebrae_0_b2_geom" class="vertebra_geom" fromto="0 0 0  -0.05657 -0.05657 0"/>
+            <site name="vertebrae_0_b2" size="0.005" pos="-0.05657 -0.05657 0"/>
+          </body>
+
+        </body><!-- end link_body_01 -->
+      </body><!-- end link_body_00 -->
+
+      <!-- ============================================================
+           link_body_06  (REAR shoulder girdle, x=0.71222 in root)
+           Direct child of Pleurobot3_v41, no intermediate spine joints
+           (the tensegrity tendons provide passive compliance)
+           ============================================================ -->
+      <body name="link_body_06" pos="0.71222 0 -0.00025">
+        <inertial pos="0.0540599 1.65021e-05 -0.00458236"
+                  quat="-0.000181852 0.791489 -0.00141647 0.611181"
+                  mass="0.833436" diaginertia="0.00126872 0.00108065 0.00102857"/>
+        <geom name="link_body_06_collision" type="mesh" conaffinity="0" group="2"
+              friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+              mesh="mesh_link_body_06_collision"/>
+        <geom name="link_body_06_visual" type="mesh" contype="0" conaffinity="0"
+              group="1" mesh="mesh_link_body_06_visual"/>
+
+        <!-- REAR LEGS -->
+        <body name="link_leg_1_L_0" pos="0.06815 -0.0485 -0.0245">
+          <inertial pos="0.000385507 -0.0144502 -0.0248889"
+                    quat="0.841913 0.539448 0.00388984 -0.0127757"
+                    mass="0.281394" diaginertia="0.000150974 0.00014135 0.000126484"/>
+          <joint name="joint_leg_1_L_0" pos="0 0 0" axis="0 0 -1"
+                 limited="true" range="-1.5708 1.5708" damping="0.1"/>
+          <geom name="link_leg_1_L_0_collision" type="mesh" conaffinity="0" group="2"
+                friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                mesh="mesh_link_leg_1_L_0_collision"/>
+          <geom name="link_leg_1_L_0_visual" type="mesh" contype="0" conaffinity="0"
+                group="1" mesh="mesh_link_leg_1_L_0_visual"/>
+          <body name="link_leg_1_L_1" pos="0.00025 -2.81e-05 -0.0235">
+            <inertial pos="0.000252758 -0.0790585 0.0353242"
+                      quat="0.998628 0.0520833 0.00501968 -0.00192733"
+                      mass="0.352126" diaginertia="0.000430099 0.00034742 0.000201667"/>
+            <joint name="joint_leg_1_L_1" pos="0 0 0" axis="1 0 0"
+                   limited="true" range="-0.785398 1.5708" damping="0.1"/>
+            <geom name="link_leg_1_L_1_collision" type="mesh" conaffinity="0" group="2"
+                  friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                  mesh="mesh_link_leg_1_L_1_collision"/>
+            <geom name="link_leg_1_L_1_visual" type="mesh" contype="0" conaffinity="0"
+                  group="1" mesh="mesh_link_leg_1_L_1_visual"/>
+            <body name="link_leg_1_L_2" pos="0.00025 -0.1082 0.03375">
+              <inertial pos="4.3226e-05 -0.0184038 0.0151445"
+                        quat="0.708454 -0.0101092 -0.00124543 0.705684"
+                        mass="0.2193" diaginertia="0.000107539 9.65534e-05 7.58652e-05"/>
+              <joint name="joint_leg_1_L_2" pos="0 0 0" axis="0 1 0"
+                     limited="true" range="-1.5708 1.5708" damping="0.1"/>
+              <geom name="link_leg_1_L_2_collision" type="mesh" conaffinity="0" group="2"
+                    friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                    mesh="mesh_link_leg_1_L_2_collision"/>
+              <geom name="link_leg_1_L_2_visual" type="mesh" contype="0" conaffinity="0"
+                    group="1" mesh="mesh_link_leg_1_L_2_visual"/>
+              <body name="link_leg_1_L_3" pos="-0.00035 -0.0235 0">
+                <inertial pos="-1.69255e-05 -0.0734151 -9.70094e-08"
+                          quat="0.499843 0.500157 -0.499843 0.500157"
+                          mass="0.0555341" diaginertia="0.000128424 0.000120602 1.16465e-05"/>
+                <joint name="joint_leg_1_L_3" pos="0 0 0" axis="1 0 0"
+                       limited="true" range="0 2.0944" damping="0.1"/>
+                <geom name="link_leg_1_L_3_collision" type="mesh" conaffinity="0" group="2"
+                      friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                      mesh="mesh_link_leg_1_L_3_collision"/>
+                <geom name="link_leg_1_L_3_visual" type="mesh" contype="0" conaffinity="0"
+                      group="1" mesh="mesh_link_leg_1_L_3_visual"/>
+              </body>
+            </body>
+          </body>
+        </body>
+
+        <body name="link_leg_1_R_0" pos="0.06815 0.0485 -0.0245">
+          <inertial pos="0.000385507 0.0144502 -0.0248889"
+                    quat="0.539448 0.841913 0.0127757 -0.00388984"
+                    mass="0.281394" diaginertia="0.000150974 0.00014135 0.000126484"/>
+          <joint name="joint_leg_1_R_0" pos="0 0 0" axis="0 0 1"
+                 limited="true" range="-1.5708 1.5708" damping="0.1"/>
+          <geom name="link_leg_1_R_0_collision" type="mesh" conaffinity="0" group="2"
+                friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                mesh="mesh_link_leg_1_R_0_collision"/>
+          <geom name="link_leg_1_R_0_visual" type="mesh" contype="0" conaffinity="0"
+                group="1" mesh="mesh_link_leg_1_R_0_visual"/>
+          <body name="link_leg_1_R_1" pos="0 2.81e-05 -0.0235">
+            <inertial pos="4.17974e-05 0.0790384 0.035368"
+                      quat="0.998732 -0.050286 0.00223043 0.00109271"
+                      mass="0.352297" diaginertia="0.000431778 0.000347272 0.000200856"/>
+            <joint name="joint_leg_1_R_1" pos="0 0 0" axis="-1 0 0"
+                   limited="true" range="-0.785398 1.5708" damping="0.1"/>
+            <geom name="link_leg_1_R_1_collision" type="mesh" conaffinity="0" group="2"
+                  friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                  mesh="mesh_link_leg_1_R_1_collision"/>
+            <geom name="link_leg_1_R_1_visual" type="mesh" contype="0" conaffinity="0"
+                  group="1" mesh="mesh_link_leg_1_R_1_visual"/>
+            <body name="link_leg_1_R_2" pos="1e-06 0.1082 0.03375">
+              <inertial pos="0.000494663 0.0184038 0.0151445"
+                        quat="0.689325 -0.00170409 -0.0104819 0.724375"
+                        mass="0.2193" diaginertia="0.000107584 9.65269e-05 7.58821e-05"/>
+              <joint name="joint_leg_1_R_2" pos="0 0 0" axis="0 1 0"
+                     limited="true" range="-1.5708 1.5708" damping="0.1"/>
+              <geom name="link_leg_1_R_2_collision" type="mesh" conaffinity="0" group="2"
+                    friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                    mesh="mesh_link_leg_1_R_2_collision"/>
+              <geom name="link_leg_1_R_2_visual" type="mesh" contype="0" conaffinity="0"
+                    group="1" mesh="mesh_link_leg_1_R_2_visual"/>
+              <body name="link_leg_1_R_3" pos="-0.000251 0.0235 0">
+                <inertial pos="-1.69255e-05 0.0734151 9.70094e-08"
+                          quat="0.500157 0.499843 -0.500157 0.499843"
+                          mass="0.0555341" diaginertia="0.000128424 0.000120602 1.16465e-05"/>
+                <joint name="joint_leg_1_R_3" pos="0 0 0" axis="-1 0 0"
+                       limited="true" range="-0.523599 2.0944" damping="0.1"/>
+                <geom name="link_leg_1_R_3_collision" type="mesh" conaffinity="0" group="2"
+                      friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0"
+                      mesh="mesh_link_leg_1_R_3_collision"/>
+                <geom name="link_leg_1_R_3_visual" type="mesh" contype="0" conaffinity="0"
+                      group="1" mesh="mesh_link_leg_1_R_3_visual"/>
+              </body>
+            </body>
+          </body>
+        </body>
+
+        <!-- ============================================================
+             VERTEBRAE_2  —  rigidly welded to link_body_06 (no joint)
+             pos in body_06 frame:
+               x = hip_attach_local - rear_extra = 0.06815 - 0.18843 = -0.12028
+             rear_spacer rod: [0,0,0]→[+0.18843,0,0]  tip reaches hip ✓
+             ============================================================ -->
+        <body name="vertebrae_2" childclass="tq1" pos="-0.12028 0 0">
+          <!-- rear rigid rod to hip attachment -->
+          <geom name="rear_spacer" class="vertebra_geom" fromto="0 0 0  0.18843 0 0"/>
+          <!-- tetrahedral arms -->
+          <geom name="vertebrae_2_a1_geom" class="vertebra_geom" fromto="0 0 0   0.07071 0  0.07071"/>
+          <site name="vertebrae_2_a1" size="0.005" pos=" 0.07071 0  0.07071"/>
+          <geom name="vertebrae_2_a2_geom" class="vertebra_geom" fromto="0 0 0   0.07071 0 -0.07071"/>
+          <site name="vertebrae_2_a2" size="0.005" pos=" 0.07071 0 -0.07071"/>
+          <geom name="vertebrae_2_b1_geom" class="vertebra_geom" fromto="0 0 0  -0.05657  0.05657 0"/>
+          <site name="vertebrae_2_b1" size="0.005" pos="-0.05657  0.05657 0"/>
+          <geom name="vertebrae_2_b2_geom" class="vertebra_geom" fromto="0 0 0  -0.05657 -0.05657 0"/>
+          <site name="vertebrae_2_b2" size="0.005" pos="-0.05657 -0.05657 0"/>
+        </body>
+
+      </body><!-- end link_body_06 -->
+
+    </body><!-- end Pleurobot3_v41 -->
+
+    <!-- ================================================================
+         VERTEBRAE_1  —  FREE middle vertebra (worldbody direct child)
+         MuJoCo rule: free joint only allowed on worldbody-level body.
+         World position = Pleurobot root pos + spine_center_x in root frame
+           = (0,0,0.5) + (0.52194,0,0) = (0.52194, 0, 0.5)
+         ================================================================ -->
+  <body name="vertebrae_1" childclass="tq1" pos="-0.52194 0 0.2" quat="0 0 0 1">
+      <joint name="joint_vertebrae_1" type="free"/>
+  <geom name="vertebrae_1_a1_geom" class="vertebra_geom" fromto="0 0 0   0.07071 0  0.07071"/>
+  <site name="vertebrae_1_a1" size="0.005" pos=" 0.07071 0  0.07071"/>
+  <geom name="vertebrae_1_a2_geom" class="vertebra_geom" fromto="0 0 0   0.07071 0 -0.07071"/>
+  <site name="vertebrae_1_a2" size="0.005" pos=" 0.07071 0 -0.07071"/>
+  <geom name="vertebrae_1_b1_geom" class="vertebra_geom" fromto="0 0 0  -0.05657  0.05657 0"/>
+  <site name="vertebrae_1_b1" size="0.005" pos="-0.05657  0.05657 0"/>
+  <geom name="vertebrae_1_b2_geom" class="vertebra_geom" fromto="0 0 0  -0.05657 -0.05657 0"/>
+  <site name="vertebrae_1_b2" size="0.005" pos="-0.05657 -0.05657 0"/>
+    </body>
+
+  </worldbody>
+
+  <!-- ================================================================
+       TENDONS  (pretension 0.90)
+       lateral springlength  = 0.07 × 0.90 = 0.0630 m
+       diagonal springlength = 0.10715 × 0.90 = 0.09643 m
+       ================================================================ -->
+  <tendon>
+    <spatial name="lat_a1_0" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_0_a1"/><site site="vertebrae_1_a1"/>
+    </spatial>
+    <spatial name="lat_a2_0" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_0_a2"/><site site="vertebrae_1_a2"/>
+    </spatial>
+    <spatial name="lat_b1_0" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_0_b1"/><site site="vertebrae_1_b1"/>
+    </spatial>
+    <spatial name="lat_b2_0" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_0_b2"/><site site="vertebrae_1_b2"/>
+    </spatial>
+    <spatial name="diag_a1b1_0" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_0_a1"/><site site="vertebrae_1_b1"/>
+    </spatial>
+    <spatial name="diag_a2b2_0" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_0_a2"/><site site="vertebrae_1_b2"/>
+    </spatial>
+    <spatial name="diag_a1b2_0" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_0_a1"/><site site="vertebrae_1_b2"/>
+    </spatial>
+    <spatial name="diag_a2b1_0" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_0_a2"/><site site="vertebrae_1_b1"/>
+    </spatial>
+
+    <spatial name="lat_a1_1" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_1_a1"/><site site="vertebrae_2_a1"/>
+    </spatial>
+    <spatial name="lat_a2_1" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_1_a2"/><site site="vertebrae_2_a2"/>
+    </spatial>
+    <spatial name="lat_b1_1" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_1_b1"/><site site="vertebrae_2_b1"/>
+    </spatial>
+    <spatial name="lat_b2_1" class="lateral_tendon"  springlength="0.0630">
+      <site site="vertebrae_1_b2"/><site site="vertebrae_2_b2"/>
+    </spatial>
+    <spatial name="diag_a1b1_1" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_1_a1"/><site site="vertebrae_2_b1"/>
+    </spatial>
+    <spatial name="diag_a2b2_1" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_1_a2"/><site site="vertebrae_2_b2"/>
+    </spatial>
+    <spatial name="diag_a1b2_1" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_1_a1"/><site site="vertebrae_2_b2"/>
+    </spatial>
+    <spatial name="diag_a2b1_1" class="diagonal_tendon" springlength="0.09643">
+      <site site="vertebrae_1_a2"/><site site="vertebrae_2_b1"/>
+    </spatial>
+  </tendon>
+
+  <!-- ================================================================
+       ACTUATORS
+       ================================================================ -->
+  <actuator>
+    <general name="actuator_position_joint_body_00" joint="joint_body_00"
+             ctrllimited="false" ctrlrange="-1000000 1000000"
+             forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_00" joint="joint_body_00"
+             ctrllimited="false" ctrlrange="-1000000 1000000"
+             forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_00"   joint="joint_body_00"
+             forcelimited="true" forcerange="-5 5"/>
+
+    <general name="actuator_position_joint_leg_0_L_0" joint="joint_leg_0_L_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_0" joint="joint_leg_0_L_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_0"   joint="joint_leg_0_L_0"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_L_1" joint="joint_leg_0_L_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_1" joint="joint_leg_0_L_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_1"   joint="joint_leg_0_L_1"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_L_2" joint="joint_leg_0_L_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_2" joint="joint_leg_0_L_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_2"   joint="joint_leg_0_L_2"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_L_3" joint="joint_leg_0_L_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_3" joint="joint_leg_0_L_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_3"   joint="joint_leg_0_L_3"
+             forcelimited="true" forcerange="-5 5"/>
+
+    <general name="actuator_position_joint_leg_0_R_0" joint="joint_leg_0_R_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_0" joint="joint_leg_0_R_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_0"   joint="joint_leg_0_R_0"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_R_1" joint="joint_leg_0_R_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_1" joint="joint_leg_0_R_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_1"   joint="joint_leg_0_R_1"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_R_2" joint="joint_leg_0_R_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_2" joint="joint_leg_0_R_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_2"   joint="joint_leg_0_R_2"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_R_3" joint="joint_leg_0_R_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_3" joint="joint_leg_0_R_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_3"   joint="joint_leg_0_R_3"
+             forcelimited="true" forcerange="-5 5"/>
+
+    <general name="actuator_position_joint_leg_1_L_0" joint="joint_leg_1_L_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_0" joint="joint_leg_1_L_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_0"   joint="joint_leg_1_L_0"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_L_1" joint="joint_leg_1_L_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_1" joint="joint_leg_1_L_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_1"   joint="joint_leg_1_L_1"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_L_2" joint="joint_leg_1_L_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_2" joint="joint_leg_1_L_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_2"   joint="joint_leg_1_L_2"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_L_3" joint="joint_leg_1_L_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_3" joint="joint_leg_1_L_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_3"   joint="joint_leg_1_L_3"
+             forcelimited="true" forcerange="-5 5"/>
+
+    <general name="actuator_position_joint_leg_1_R_0" joint="joint_leg_1_R_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_0" joint="joint_leg_1_R_0"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_0"   joint="joint_leg_1_R_0"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_R_1" joint="joint_leg_1_R_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_1" joint="joint_leg_1_R_1"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_1"   joint="joint_leg_1_R_1"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_R_2" joint="joint_leg_1_R_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_2" joint="joint_leg_1_R_2"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_2"   joint="joint_leg_1_R_2"
+             forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_R_3" joint="joint_leg_1_R_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_3" joint="joint_leg_1_R_3"
+             ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5"
+             biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_3"   joint="joint_leg_1_R_3"
+             forcelimited="true" forcerange="-5 5"/>
+  </actuator>
+
+  <!-- ================================================================
+       SENSORS
+       ================================================================ -->
+  <sensor>
+    <framelinvel objtype="body" objname="Pleurobot3_v41" name="framelinvel_Pleurobot3_v41"/>
+    <frameangvel objtype="body" objname="Pleurobot3_v41" name="frameangvel_Pleurobot3_v41"/>
+    <framelinvel objtype="body" objname="link_body_00"   name="framelinvel_link_body_00"/>
+    <frameangvel objtype="body" objname="link_body_00"   name="frameangvel_link_body_00"/>
+    <framelinvel objtype="body" objname="link_body_01"   name="framelinvel_link_body_01"/>
+    <frameangvel objtype="body" objname="link_body_01"   name="frameangvel_link_body_01"/>
+    <framelinvel objtype="body" objname="link_body_06"   name="framelinvel_link_body_06"/>
+    <frameangvel objtype="body" objname="link_body_06"   name="frameangvel_link_body_06"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_0" name="framelinvel_link_leg_1_L_0"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_0" name="frameangvel_link_leg_1_L_0"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_1" name="framelinvel_link_leg_1_L_1"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_1" name="frameangvel_link_leg_1_L_1"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_2" name="framelinvel_link_leg_1_L_2"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_2" name="frameangvel_link_leg_1_L_2"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_3" name="framelinvel_link_leg_1_L_3"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_3" name="frameangvel_link_leg_1_L_3"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_0" name="framelinvel_link_leg_1_R_0"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_0" name="frameangvel_link_leg_1_R_0"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_1" name="framelinvel_link_leg_1_R_1"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_1" name="frameangvel_link_leg_1_R_1"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_2" name="framelinvel_link_leg_1_R_2"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_2" name="frameangvel_link_leg_1_R_2"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_3" name="framelinvel_link_leg_1_R_3"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_3" name="frameangvel_link_leg_1_R_3"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_0" name="framelinvel_link_leg_0_L_0"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_0" name="frameangvel_link_leg_0_L_0"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_1" name="framelinvel_link_leg_0_L_1"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_1" name="frameangvel_link_leg_0_L_1"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_2" name="framelinvel_link_leg_0_L_2"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_2" name="frameangvel_link_leg_0_L_2"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_3" name="framelinvel_link_leg_0_L_3"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_3" name="frameangvel_link_leg_0_L_3"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_0" name="framelinvel_link_leg_0_R_0"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_0" name="frameangvel_link_leg_0_R_0"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_1" name="framelinvel_link_leg_0_R_1"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_1" name="frameangvel_link_leg_0_R_1"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_2" name="framelinvel_link_leg_0_R_2"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_2" name="frameangvel_link_leg_0_R_2"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_3" name="framelinvel_link_leg_0_R_3"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_3" name="frameangvel_link_leg_0_R_3"/>
+
+    <jointpos joint="joint_body_00" name="jointpos_joint_body_00"/>
+    <jointvel joint="joint_body_00" name="jointvel_joint_body_00"/>
+    <jointlimitfrc joint="joint_body_00" name="jointlimitfrc_joint_body_00"/>
+    <jointpos joint="joint_leg_1_L_0" name="jointpos_joint_leg_1_L_0"/>
+    <jointvel joint="joint_leg_1_L_0" name="jointvel_joint_leg_1_L_0"/>
+    <jointlimitfrc joint="joint_leg_1_L_0" name="jointlimitfrc_joint_leg_1_L_0"/>
+    <jointpos joint="joint_leg_1_L_1" name="jointpos_joint_leg_1_L_1"/>
+    <jointvel joint="joint_leg_1_L_1" name="jointvel_joint_leg_1_L_1"/>
+    <jointlimitfrc joint="joint_leg_1_L_1" name="jointlimitfrc_joint_leg_1_L_1"/>
+    <jointpos joint="joint_leg_1_L_2" name="jointpos_joint_leg_1_L_2"/>
+    <jointvel joint="joint_leg_1_L_2" name="jointvel_joint_leg_1_L_2"/>
+    <jointlimitfrc joint="joint_leg_1_L_2" name="jointlimitfrc_joint_leg_1_L_2"/>
+    <jointpos joint="joint_leg_1_L_3" name="jointpos_joint_leg_1_L_3"/>
+    <jointvel joint="joint_leg_1_L_3" name="jointvel_joint_leg_1_L_3"/>
+    <jointlimitfrc joint="joint_leg_1_L_3" name="jointlimitfrc_joint_leg_1_L_3"/>
+    <jointpos joint="joint_leg_1_R_0" name="jointpos_joint_leg_1_R_0"/>
+    <jointvel joint="joint_leg_1_R_0" name="jointvel_joint_leg_1_R_0"/>
+    <jointlimitfrc joint="joint_leg_1_R_0" name="jointlimitfrc_joint_leg_1_R_0"/>
+    <jointpos joint="joint_leg_1_R_1" name="jointpos_joint_leg_1_R_1"/>
+    <jointvel joint="joint_leg_1_R_1" name="jointvel_joint_leg_1_R_1"/>
+    <jointlimitfrc joint="joint_leg_1_R_1" name="jointlimitfrc_joint_leg_1_R_1"/>
+    <jointpos joint="joint_leg_1_R_2" name="jointpos_joint_leg_1_R_2"/>
+    <jointvel joint="joint_leg_1_R_2" name="jointvel_joint_leg_1_R_2"/>
+    <jointlimitfrc joint="joint_leg_1_R_2" name="jointlimitfrc_joint_leg_1_R_2"/>
+    <jointpos joint="joint_leg_1_R_3" name="jointpos_joint_leg_1_R_3"/>
+    <jointvel joint="joint_leg_1_R_3" name="jointvel_joint_leg_1_R_3"/>
+    <jointlimitfrc joint="joint_leg_1_R_3" name="jointlimitfrc_joint_leg_1_R_3"/>
+    <jointpos joint="joint_leg_0_L_0" name="jointpos_joint_leg_0_L_0"/>
+    <jointvel joint="joint_leg_0_L_0" name="jointvel_joint_leg_0_L_0"/>
+    <jointlimitfrc joint="joint_leg_0_L_0" name="jointlimitfrc_joint_leg_0_L_0"/>
+    <jointpos joint="joint_leg_0_L_1" name="jointpos_joint_leg_0_L_1"/>
+    <jointvel joint="joint_leg_0_L_1" name="jointvel_joint_leg_0_L_1"/>
+    <jointlimitfrc joint="joint_leg_0_L_1" name="jointlimitfrc_joint_leg_0_L_1"/>
+    <jointpos joint="joint_leg_0_L_2" name="jointpos_joint_leg_0_L_2"/>
+    <jointvel joint="joint_leg_0_L_2" name="jointvel_joint_leg_0_L_2"/>
+    <jointlimitfrc joint="joint_leg_0_L_2" name="jointlimitfrc_joint_leg_0_L_2"/>
+    <jointpos joint="joint_leg_0_L_3" name="jointpos_joint_leg_0_L_3"/>
+    <jointvel joint="joint_leg_0_L_3" name="jointvel_joint_leg_0_L_3"/>
+    <jointlimitfrc joint="joint_leg_0_L_3" name="jointlimitfrc_joint_leg_0_L_3"/>
+    <jointpos joint="joint_leg_0_R_0" name="jointpos_joint_leg_0_R_0"/>
+    <jointvel joint="joint_leg_0_R_0" name="jointvel_joint_leg_0_R_0"/>
+    <jointlimitfrc joint="joint_leg_0_R_0" name="jointlimitfrc_joint_leg_0_R_0"/>
+    <jointpos joint="joint_leg_0_R_1" name="jointpos_joint_leg_0_R_1"/>
+    <jointvel joint="joint_leg_0_R_1" name="jointvel_joint_leg_0_R_1"/>
+    <jointlimitfrc joint="joint_leg_0_R_1" name="jointlimitfrc_joint_leg_0_R_1"/>
+    <jointpos joint="joint_leg_0_R_2" name="jointpos_joint_leg_0_R_2"/>
+    <jointvel joint="joint_leg_0_R_2" name="jointvel_joint_leg_0_R_2"/>
+    <jointlimitfrc joint="joint_leg_0_R_2" name="jointlimitfrc_joint_leg_0_R_2"/>
+    <jointpos joint="joint_leg_0_R_3" name="jointpos_joint_leg_0_R_3"/>
+    <jointvel joint="joint_leg_0_R_3" name="jointvel_joint_leg_0_R_3"/>
+    <jointlimitfrc joint="joint_leg_0_R_3" name="jointlimitfrc_joint_leg_0_R_3"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_00" name="actuatorfrc_position_joint_body_00"/>
+    <actuatorfrc actuator="actuator_velocity_joint_body_00" name="actuatorfrc_velocity_joint_body_00"/>
+    <actuatorfrc actuator="actuator_torque_joint_body_00"   name="actuatorfrc_motor_joint_body_00"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_0" name="actuatorfrc_position_joint_leg_0_L_0"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_0" name="actuatorfrc_velocity_joint_leg_0_L_0"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_0"   name="actuatorfrc_motor_joint_leg_0_L_0"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_1" name="actuatorfrc_position_joint_leg_0_L_1"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_1" name="actuatorfrc_velocity_joint_leg_0_L_1"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_1"   name="actuatorfrc_motor_joint_leg_0_L_1"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_2" name="actuatorfrc_position_joint_leg_0_L_2"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_2" name="actuatorfrc_velocity_joint_leg_0_L_2"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_2"   name="actuatorfrc_motor_joint_leg_0_L_2"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_3" name="actuatorfrc_position_joint_leg_0_L_3"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_3" name="actuatorfrc_velocity_joint_leg_0_L_3"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_3"   name="actuatorfrc_motor_joint_leg_0_L_3"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_0" name="actuatorfrc_position_joint_leg_0_R_0"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_0" name="actuatorfrc_velocity_joint_leg_0_R_0"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_0"   name="actuatorfrc_motor_joint_leg_0_R_0"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_1" name="actuatorfrc_position_joint_leg_0_R_1"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_1" name="actuatorfrc_velocity_joint_leg_0_R_1"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_1"   name="actuatorfrc_motor_joint_leg_0_R_1"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_2" name="actuatorfrc_position_joint_leg_0_R_2"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_2" name="actuatorfrc_velocity_joint_leg_0_R_2"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_2"   name="actuatorfrc_motor_joint_leg_0_R_2"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_3" name="actuatorfrc_position_joint_leg_0_R_3"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_3" name="actuatorfrc_velocity_joint_leg_0_R_3"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_3"   name="actuatorfrc_motor_joint_leg_0_R_3"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_0" name="actuatorfrc_position_joint_leg_1_L_0"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_0" name="actuatorfrc_velocity_joint_leg_1_L_0"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_0"   name="actuatorfrc_motor_joint_leg_1_L_0"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_1" name="actuatorfrc_position_joint_leg_1_L_1"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_1" name="actuatorfrc_velocity_joint_leg_1_L_1"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_1"   name="actuatorfrc_motor_joint_leg_1_L_1"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_2" name="actuatorfrc_position_joint_leg_1_L_2"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_2" name="actuatorfrc_velocity_joint_leg_1_L_2"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_2"   name="actuatorfrc_motor_joint_leg_1_L_2"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_3" name="actuatorfrc_position_joint_leg_1_L_3"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_3" name="actuatorfrc_velocity_joint_leg_1_L_3"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_3"   name="actuatorfrc_motor_joint_leg_1_L_3"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_0" name="actuatorfrc_position_joint_leg_1_R_0"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_0" name="actuatorfrc_velocity_joint_leg_1_R_0"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_0"   name="actuatorfrc_motor_joint_leg_1_R_0"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_1" name="actuatorfrc_position_joint_leg_1_R_1"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_1" name="actuatorfrc_velocity_joint_leg_1_R_1"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_1"   name="actuatorfrc_motor_joint_leg_1_R_1"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_2" name="actuatorfrc_position_joint_leg_1_R_2"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_2" name="actuatorfrc_velocity_joint_leg_1_R_2"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_2"   name="actuatorfrc_motor_joint_leg_1_R_2"/>
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_3" name="actuatorfrc_position_joint_leg_1_R_3"/>
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_3" name="actuatorfrc_velocity_joint_leg_1_R_3"/>
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_3"   name="actuatorfrc_motor_joint_leg_1_R_3"/>
+
+    <framelinvel objtype="body" objname="vertebrae_1"    name="framelinvel_vertebrae_1"/>
+    <frameangvel objtype="body" objname="vertebrae_1"    name="frameangvel_vertebrae_1"/>
+    <gyro          name="gyro"            site="com_vertebrae_1"/>
+    <velocimeter   name="local_linvel"    site="com_vertebrae_1"/>
+    <accelerometer name="accelerometer"   site="com_vertebrae_1"/>
+    <framepos      name="position"        objtype="site" objname="com_vertebrae_1"/>
+    <framezaxis    name="upvector"        objtype="site" objname="com_vertebrae_1"/>
+    <framexaxis    name="forwardvector"   objtype="site" objname="com_vertebrae_1"/>
+    <framelinvel   name="global_linvel"   objtype="site" objname="com_vertebrae_1"/>
+    <frameangvel   name="global_angvel"   objtype="site" objname="com_vertebrae_1"/>
+    <framequat     name="orientation"     objtype="site" objname="com_vertebrae_1"/>
+  </sensor>
+
+</mujoco>

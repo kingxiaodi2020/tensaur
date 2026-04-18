@@ -1,0 +1,28 @@
+# ctrl_dt: 0.02
+# sim_dt: 0.001
+# episode_length: 1000
+# Kp: 35.0
+# Kd: 0.5
+# action_repeat: 1
+# action_scale: 0.5
+# history_len: 1
+# soft_joint_pos_limit_factor: 0.95
+
+# noise_config: 
+#   level: 0.0  # Set to 0.0 to disable noise.
+#   scales: 
+#     joint_pos: 0.03
+#     joint_vel: 1.5
+#     gyro: 0.2
+#     gravity: 0.05
+#     linvel: 0.1
+
+# reward_config:
+#   target_x_vel: 1
+  # scales:
+  #   global_vel_x: 1.0
+  #   local_yaw: 1.0
+  #   action_rate: -0.01
+  #   energy: -0.001
+  #   torques: -0.0002
+  

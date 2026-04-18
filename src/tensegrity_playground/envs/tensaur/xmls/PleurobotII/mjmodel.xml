@@ -1,0 +1,699 @@
+<mujoco model="Animat">
+  <compiler angle="radian" boundmass="1e-06" boundinertia="1e-12"/>
+
+  <option timestep="0.001" iterations="1000"/>
+
+  <size njmax="4096" nconmax="4096"/>
+
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+    <quality shadowsize="1024"/>
+    <map force="1" torque="1" znear="0.0001" zfar="3" shadowscale="0.3"/>
+    <scale forcewidth="0.01" contactwidth="0.03" contactheight="0.01" connect="0.01" com="0.01" camera="0.1" light="0.1" selectpoint="0.01" jointlength="0.15" jointwidth="0.005" actuatorlength="0.01" actuatorwidth="0.01" framelength="0.01" framewidth="0.01" constraint="0.01" slidercrank="0.01"/>
+  </visual>
+
+  <statistic meaninertia="1" meanmass="1" meansize="1"/>
+
+  <default>
+    <default class="/"/>
+  </default>
+
+  <asset>
+    <texture type="2d" name="texture_grid" builtin="checker" mark="edge" rgb1="0.1 0.2 0.3" rgb2="0.2 0.3 0.4" markrgb="0.2 0.3 0.4" width="300" height="300"/>
+    <texture type="skybox" name="skybox" builtin="gradient" mark="random" rgb1="0.4 0.6 0.8" rgb2="0 0 0" markrgb="1 1 1" width="800" height="4800"/>
+    <material name="material_grid" class="/" texture="texture_grid" texuniform="true" reflectance="0.2"/>
+    <mesh name="mesh_link_body_00_collision" class="/" file="link_body_00_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_00_visual" class="/" file="link_body_00.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_01_collision" class="/" file="link_body_01_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_01_visual" class="/" file="link_body_01.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_02_collision" class="/" file="link_body_02_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_02_visual" class="/" file="link_body_02.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_03_collision" class="/" file="link_body_03_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_03_visual" class="/" file="link_body_03.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_04_collision" class="/" file="link_body_04_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_04_visual" class="/" file="link_body_04.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_05_collision" class="/" file="link_body_05_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_05_visual" class="/" file="link_body_05.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_06_collision" class="/" file="link_body_06_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_06_visual" class="/" file="link_body_06.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_07_collision" class="/" file="link_body_07_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_07_visual" class="/" file="link_body_07.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_08_collision" class="/" file="link_body_08_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_08_visual" class="/" file="link_body_08.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_09_collision" class="/" file="link_body_09_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_09_visual" class="/" file="link_body_09.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_10_collision" class="/" file="link_body_10_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_10_visual" class="/" file="link_body_10.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_11_collision" class="/" file="link_body_11_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_11_visual" class="/" file="link_body_11.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_12_collision" class="/" file="link_body_12_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_12_visual" class="/" file="link_body_12.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_13_collision" class="/" file="link_body_13_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_body_13_visual" class="/" file="link_body_13.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_0_collision" class="/" file="link_leg_1_L_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_0_visual" class="/" file="link_leg_1_L_0.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_1_collision" class="/" file="link_leg_1_L_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_1_visual" class="/" file="link_leg_1_L_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_2_collision" class="/" file="link_leg_1_L_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_2_visual" class="/" file="link_leg_1_L_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_3_collision" class="/" file="link_leg_1_L_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_L_3_visual" class="/" file="link_leg_1_L_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_0_collision" class="/" file="link_leg_1_R_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_0_visual" class="/" file="link_leg_1_R_0.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_1_collision" class="/" file="link_leg_1_R_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_1_visual" class="/" file="link_leg_1_R_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_2_collision" class="/" file="link_leg_1_R_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_2_visual" class="/" file="link_leg_1_R_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_3_collision" class="/" file="link_leg_1_R_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_1_R_3_visual" class="/" file="link_leg_1_R_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_0_collision" class="/" file="link_leg_0_L_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_0_visual" class="/" file="link_leg_0_L_0.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_1_collision" class="/" file="link_leg_0_L_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_1_visual" class="/" file="link_leg_0_L_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_2_collision" class="/" file="link_leg_0_L_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_2_visual" class="/" file="link_leg_0_L_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_3_collision" class="/" file="link_leg_0_L_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_L_3_visual" class="/" file="link_leg_0_L_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_0_collision" class="/" file="link_leg_0_R_0_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_0_visual" class="/" file="link_leg_0_R_0.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_1_collision" class="/" file="link_leg_0_R_1_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_1_visual" class="/" file="link_leg_0_R_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_2_collision" class="/" file="link_leg_0_R_2_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_2_visual" class="/" file="link_leg_0_R_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_3_collision" class="/" file="link_leg_0_R_3_collision.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="mesh_link_leg_0_R_3_visual" class="/" file="link_leg_0_R_3.stl" scale="0.001 0.001 0.001"/>
+  </asset>
+
+  <worldbody>
+    <body name="arena_flat">
+      <body name="floor">
+        <inertial pos="0 0 0" mass="1e-06" diaginertia="1e-12 1e-12 1e-12"/>
+        <geom name="floor_collision" class="/" size="100 100 1" type="plane" group="2" friction="0 0 0" material="material_grid"/>
+        <geom name="floor_visual" class="/" size="100 100 1" type="plane" contype="0" conaffinity="0" group="1" material="material_grid"/>
+      </body>
+    </body>
+    <body name="Pleurobot3_v41" pos="0 0 0.5">
+      <joint name="root_Pleurobot3_v41" type="free" limited="false" actuatorfrclimited="false"/>
+      <camera name="camera_Pleurobot3_v41_0" class="/" pos="0.853553 -0.612372 0.707107" quat="0.892399 0.369644 0.0990458 0.239118" mode="trackcom" fovy="70"/>
+      <camera name="camera_Pleurobot3_v41_1" class="/" pos="0 0 1" mode="trackcom" fovy="70"/>
+      <camera name="camera_Pleurobot3_v41_2" class="/" pos="0 -1 0.2" quat="0.809017 0.587785 0 0" mode="trackcom" fovy="70"/>
+      <camera name="camera_Pleurobot3_v41_3" class="/" pos="-1 0 0.2" quat="0.572061 0.415627 -0.415627 -0.572061" mode="trackcom" fovy="70"/>
+      <light name="light_animat" class="/" pos="-1 1 3" dir="0.301511 -0.301511 -0.904534" cutoff="100" exponent="1" mode="trackcom"/>
+      <body name="link_body_00" pos="0 0 -0.00025">
+        <inertial pos="0.0859678 -9.39563e-05 -0.0214195" quat="0.00091767 0.653093 -0.00130278 0.757276" mass="0.55" diaginertia="0.00142014 0.000999528 0.000709161"/>
+        <geom name="link_body_00_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_00_collision"/>
+        <geom name="link_body_00_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_00_visual"/>
+        <body name="link_body_01" pos="0.2 0 0.00025">
+          <inertial pos="0.0579557 0.000108031 -0.0182171" quat="0.69471 0.693725 -0.133707 0.135078" mass="0.789922" diaginertia="0.00266104 0.0024395 0.00100587"/>
+          <joint name="joint_body_00" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+          <geom name="link_body_01_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_01_collision"/>
+          <geom name="link_body_01_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_01_visual"/>
+          <body name="link_body_02" pos="0.127 0 0">
+            <inertial pos="0.0283506 2.84977e-09 0.000462511" quat="0.496067 0.503902 0.503902 0.496067" mass="0.251246" diaginertia="0.000260098 0.00022259 0.000102916"/>
+            <joint name="joint_body_01" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+            <geom name="link_body_02_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_02_collision"/>
+            <geom name="link_body_02_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_02_visual"/>
+            <body name="link_body_03" pos="0.096305 0 0">
+              <inertial pos="0.0283506 2.84977e-09 0.000462511" quat="0.496067 0.503902 0.503902 0.496067" mass="0.251246" diaginertia="0.000260098 0.00022259 0.000102916"/>
+              <joint name="joint_body_02" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+              <geom name="link_body_03_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_03_collision"/>
+              <geom name="link_body_03_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_03_visual"/>
+              <body name="link_body_04" pos="0.096305 0 0">
+                <inertial pos="0.0283519 2.78852e-09 0.00059273" quat="0.499976 0.500024 0.500024 0.499976" mass="0.251251" diaginertia="0.000260361 0.000222588 0.000103199"/>
+                <joint name="joint_body_03" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                <geom name="link_body_04_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_04_collision"/>
+                <geom name="link_body_04_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_04_visual"/>
+                <body name="link_body_05" pos="0.096305 0 0">
+                  <inertial pos="0.0283506 2.84977e-09 0.000462511" quat="0.496067 0.503902 0.503902 0.496067" mass="0.251246" diaginertia="0.000260098 0.00022259 0.000102916"/>
+                  <joint name="joint_body_04" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                  <geom name="link_body_05_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_05_collision"/>
+                  <geom name="link_body_05_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_05_visual"/>
+                  <body name="link_body_06" pos="0.096305 0 0">
+                    <inertial pos="0.0540599 1.65021e-05 -0.00458236" quat="-0.000181852 0.791489 -0.00141647 0.611181" mass="0.833436" diaginertia="0.00126872 0.00108065 0.00102857"/>
+                    <joint name="joint_body_05" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                    <geom name="link_body_06_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_06_collision"/>
+                    <geom name="link_body_06_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_06_visual"/>
+                    <body name="link_body_07" pos="0.1049 0 0">
+                      <inertial pos="0.0206771 -0.000113354 7.12406e-05" quat="0.702185 0.00255411 0.00245546 0.711986" mass="0.0157599" diaginertia="1.26672e-05 1.02164e-05 4.9985e-06"/>
+                      <joint name="joint_body_06_passive" class="/" pos="0 0 0" axis="0 1 0" stiffness="0.0001" limited="true" range="-0.785398 0.785398" damping="0.101"/>
+                      <geom name="link_body_07_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_07_collision"/>
+                      <geom name="link_body_07_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_07_visual"/>
+                      <body name="link_body_08" pos="0.035 0 0">
+                        <inertial pos="0.0197046 7.73882e-10 0.000582791" quat="0.495909 0.504058 0.504058 0.495909" mass="0.188939" diaginertia="0.000130958 0.000110232 5.84056e-05"/>
+                        <joint name="joint_body_07" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                        <geom name="link_body_08_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_08_collision"/>
+                        <geom name="link_body_08_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_08_visual"/>
+                        <body name="link_body_09" pos="0.08137 0 0">
+                          <inertial pos="0.0197046 7.73882e-10 0.000582791" quat="0.495909 0.504058 0.504058 0.495909" mass="0.188939" diaginertia="0.000130958 0.000110232 5.84056e-05"/>
+                          <joint name="joint_body_08" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                          <geom name="link_body_09_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_09_collision"/>
+                          <geom name="link_body_09_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_09_visual"/>
+                          <body name="link_body_10" pos="0.08137 0 0">
+                            <inertial pos="0.0197046 7.73882e-10 0.000582791" quat="0.495909 0.504058 0.504058 0.495909" mass="0.188939" diaginertia="0.000130958 0.000110232 5.84056e-05"/>
+                            <joint name="joint_body_09" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                            <geom name="link_body_10_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_10_collision"/>
+                            <geom name="link_body_10_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_10_visual"/>
+                            <body name="link_body_11" pos="0.08137 0 0">
+                              <inertial pos="0.0197046 7.73882e-10 0.000582791" quat="0.495909 0.504058 0.504058 0.495909" mass="0.188939" diaginertia="0.000130958 0.000110232 5.84056e-05"/>
+                              <joint name="joint_body_10" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                              <geom name="link_body_11_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_11_collision"/>
+                              <geom name="link_body_11_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_11_visual"/>
+                              <body name="link_body_12" pos="0.08137 0 0">
+                                <inertial pos="0.017815 3.24912e-08 0.000428758" quat="0.483719 0.515766 0.515769 0.483719" mass="0.180742" diaginertia="9.74094e-05 8.44591e-05 4.9347e-05"/>
+                                <joint name="joint_body_11" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-0.785398 0.785398" damping="0.1"/>
+                                <geom name="link_body_12_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_12_collision"/>
+                                <geom name="link_body_12_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_12_visual"/>
+                                <body name="link_body_13" pos="0.05875 0 0">
+                                  <inertial pos="0.0748304 6.4855e-08 -0.00148628" quat="0.498125 0.501865 0.501886 0.498109" mass="0.0338633" diaginertia="6.25521e-05 6.03862e-05 5.45443e-06"/>
+                                  <joint name="joint_body_12_passive" class="/" pos="0 0 0" axis="0 1 0" stiffness="0.0001" limited="true" range="-1.0472 0" damping="0.101"/>
+                                  <geom name="link_body_13_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.1 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_body_13_collision"/>
+                                  <geom name="link_body_13_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_body_13_visual"/>
+                                </body>
+                              </body>
+                            </body>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+                    <body name="link_leg_1_L_0" pos="0.06815 -0.0485 -0.0245">
+                      <inertial pos="0.000385507 -0.0144502 -0.0248889" quat="0.841913 0.539448 0.00388984 -0.0127757" mass="0.281394" diaginertia="0.000150974 0.00014135 0.000126484"/>
+                      <joint name="joint_leg_1_L_0" class="/" pos="0 0 0" axis="0 0 -1" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                      <geom name="link_leg_1_L_0_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_L_0_collision"/>
+                      <geom name="link_leg_1_L_0_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_L_0_visual"/>
+                      <body name="link_leg_1_L_1" pos="0.00025 -2.81e-05 -0.0235">
+                        <inertial pos="0.000252758 -0.0790585 0.0353242" quat="0.998628 0.0520833 0.00501968 -0.00192733" mass="0.352126" diaginertia="0.000430099 0.00034742 0.000201667"/>
+                        <joint name="joint_leg_1_L_1" class="/" pos="0 0 0" axis="1 0 0" limited="true" range="-0.785398 1.5708" damping="0.1"/>
+                        <geom name="link_leg_1_L_1_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_L_1_collision"/>
+                        <geom name="link_leg_1_L_1_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_L_1_visual"/>
+                        <body name="link_leg_1_L_2" pos="0.00025 -0.1082 0.03375">
+                          <inertial pos="4.3226e-05 -0.0184038 0.0151445" quat="0.708454 -0.0101092 -0.00124543 0.705684" mass="0.2193" diaginertia="0.000107539 9.65534e-05 7.58652e-05"/>
+                          <joint name="joint_leg_1_L_2" class="/" pos="0 0 0" axis="0 1 0" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                          <geom name="link_leg_1_L_2_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_L_2_collision"/>
+                          <geom name="link_leg_1_L_2_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_L_2_visual"/>
+                          <body name="link_leg_1_L_3" pos="-0.00035 -0.0235 0">
+                            <inertial pos="-1.69255e-05 -0.0734151 -9.70094e-08" quat="0.499843 0.500157 -0.499843 0.500157" mass="0.0555341" diaginertia="0.000128424 0.000120602 1.16465e-05"/>
+                            <joint name="joint_leg_1_L_3" class="/" pos="0 0 0" axis="1 0 0" limited="true" range="0 2.0944" damping="0.1"/>
+                            <geom name="link_leg_1_L_3_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_L_3_collision"/>
+                            <geom name="link_leg_1_L_3_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_L_3_visual"/>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+                    <body name="link_leg_1_R_0" pos="0.06815 0.0485 -0.0245">
+                      <inertial pos="0.000385507 0.0144502 -0.0248889" quat="0.539448 0.841913 0.0127757 -0.00388984" mass="0.281394" diaginertia="0.000150974 0.00014135 0.000126484"/>
+                      <joint name="joint_leg_1_R_0" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                      <geom name="link_leg_1_R_0_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_R_0_collision"/>
+                      <geom name="link_leg_1_R_0_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_R_0_visual"/>
+                      <body name="link_leg_1_R_1" pos="0 2.81e-05 -0.0235">
+                        <inertial pos="4.17974e-05 0.0790384 0.035368" quat="0.998732 -0.050286 0.00223043 0.00109271" mass="0.352297" diaginertia="0.000431778 0.000347272 0.000200856"/>
+                        <joint name="joint_leg_1_R_1" class="/" pos="0 0 0" axis="-1 0 0" limited="true" range="-0.785398 1.5708" damping="0.1"/>
+                        <geom name="link_leg_1_R_1_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_R_1_collision"/>
+                        <geom name="link_leg_1_R_1_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_R_1_visual"/>
+                        <body name="link_leg_1_R_2" pos="1e-06 0.1082 0.03375">
+                          <inertial pos="0.000494663 0.0184038 0.0151445" quat="0.689325 -0.00170409 -0.0104819 0.724375" mass="0.2193" diaginertia="0.000107584 9.65269e-05 7.58821e-05"/>
+                          <joint name="joint_leg_1_R_2" class="/" pos="0 0 0" axis="0 1 0" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                          <geom name="link_leg_1_R_2_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_R_2_collision"/>
+                          <geom name="link_leg_1_R_2_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_R_2_visual"/>
+                          <body name="link_leg_1_R_3" pos="-0.000251 0.0235 0">
+                            <inertial pos="-1.69255e-05 0.0734151 9.70094e-08" quat="0.500157 0.499843 -0.500157 0.499843" mass="0.0555341" diaginertia="0.000128424 0.000120602 1.16465e-05"/>
+                            <joint name="joint_leg_1_R_3" class="/" pos="0 0 0" axis="-1 0 0" limited="true" range="-0.523599 2.0944" damping="0.1"/>
+                            <geom name="link_leg_1_R_3_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_1_R_3_collision"/>
+                            <geom name="link_leg_1_R_3_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_1_R_3_visual"/>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+          <body name="link_leg_0_L_0" pos="0.0635 -0.081 -0.0395">
+            <inertial pos="-0.000385507 0.0144271 -0.0248889" quat="0.538889 0.84227 -0.0128255 0.00391209" mass="0.281394" diaginertia="0.000150977 0.000141377 0.000126461"/>
+            <joint name="joint_leg_0_L_0" class="/" pos="0 0 0" axis="0 0 -1" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+            <geom name="link_leg_0_L_0_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_L_0_collision"/>
+            <geom name="link_leg_0_L_0_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_L_0_visual"/>
+            <body name="link_leg_0_L_1" pos="0.00025 0 -0.0235">
+              <inertial pos="-7.80075e-05 -0.0950586 0.035246" quat="0.99536 0.0961703 0.00106114 -0.00288401" mass="0.352182" diaginertia="0.000457556 0.000346982 0.000228726"/>
+              <joint name="joint_leg_0_L_1" class="/" pos="0 0 0" axis="1 0 0" limited="true" range="-1.5708 0.785398" damping="0.1"/>
+              <geom name="link_leg_0_L_1_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_L_1_collision"/>
+              <geom name="link_leg_0_L_1_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_L_1_visual"/>
+              <body name="link_leg_0_L_2" pos="-0.00025 -0.12475 0.03375">
+                <inertial pos="-0.000502145 -0.0185309 0.0151607" quat="0.68881 0.00221149 0.0107882 0.724858" mass="0.216032" diaginertia="0.000104563 9.40795e-05 7.48375e-05"/>
+                <joint name="joint_leg_0_L_2" class="/" pos="0 0 0" axis="0 1 0" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                <geom name="link_leg_0_L_2_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_L_2_collision"/>
+                <geom name="link_leg_0_L_2_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_L_2_visual"/>
+                <body name="link_leg_0_L_3" pos="0 -0.0235 2.81e-05">
+                  <inertial pos="-2.37331e-05 -0.0706142 0.00743435" quat="0.49826 0.501031 -0.501234 0.499469" mass="0.0535637" diaginertia="0.00011299 0.000106806 1.29115e-05"/>
+                  <joint name="joint_leg_0_L_3" class="/" pos="0 0 0" axis="1 0 0" limited="true" range="0 2.0944" damping="0.1"/>
+                  <geom name="link_leg_0_L_3_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_L_3_collision"/>
+                  <geom name="link_leg_0_L_3_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_L_3_visual"/>
+                </body>
+              </body>
+            </body>
+          </body>
+          <body name="link_leg_0_R_0" pos="0.0635 0.081 -0.0395">
+            <inertial pos="-0.000385507 -0.0144271 -0.0248889" quat="0.84227 0.538889 -0.00391209 0.0128255" mass="0.281394" diaginertia="0.000150977 0.000141377 0.000126461"/>
+            <joint name="joint_leg_0_R_0" class="/" pos="0 0 0" axis="0 0 1" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+            <geom name="link_leg_0_R_0_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_R_0_collision"/>
+            <geom name="link_leg_0_R_0_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_R_0_visual"/>
+            <body name="link_leg_0_R_1" pos="0.00025 0 -0.0235">
+              <inertial pos="4.17909e-05 0.0950387 0.0353633" quat="0.995892 -0.0905152 0.00220897 0.00102721" mass="0.352354" diaginertia="0.000462018 0.00034932 0.000228194"/>
+              <joint name="joint_leg_0_R_1" class="/" pos="0 0 0" axis="-1 0 0" limited="true" range="-0.785398 1.5708" damping="0.1"/>
+              <geom name="link_leg_0_R_1_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_R_1_collision"/>
+              <geom name="link_leg_0_R_1_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_R_1_visual"/>
+              <body name="link_leg_0_R_2" pos="0 0.12475 0.03375">
+                <inertial pos="-0.000502145 0.0185309 0.0151607" quat="0.724858 0.0107882 0.00221149 0.68881" mass="0.216032" diaginertia="0.000104563 9.40795e-05 7.48375e-05"/>
+                <joint name="joint_leg_0_R_2" class="/" pos="0 0 0" axis="0 1 0" limited="true" range="-1.5708 1.5708" damping="0.1"/>
+                <geom name="link_leg_0_R_2_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_R_2_collision"/>
+                <geom name="link_leg_0_R_2_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_R_2_visual"/>
+                <body name="link_leg_0_R_3" pos="0 0.0235 2.81e-05">
+                  <inertial pos="-2.37566e-05 0.0706141 0.00743449" quat="0.501031 0.49826 -0.49947 0.501233" mass="0.0535638" diaginertia="0.00011299 0.000106806 1.29116e-05"/>
+                  <joint name="joint_leg_0_R_3" class="/" pos="0 0 0" axis="-1 0 0" limited="true" range="0 2.0944" damping="0.1"/>
+                  <geom name="link_leg_0_R_3_collision" class="/" type="mesh" conaffinity="0" group="2" friction="0.7 0 0" solref="-3300 -45" fluidcoef="0 0 0 0 0" mesh="mesh_link_leg_0_R_3_collision"/>
+                  <geom name="link_leg_0_R_3_visual" class="/" type="mesh" contype="0" conaffinity="0" group="1" mesh="mesh_link_leg_0_R_3_visual"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <general name="actuator_position_joint_body_00" class="/" joint="joint_body_00" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_00" class="/" joint="joint_body_00" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_00" class="/" joint="joint_body_00" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_01" class="/" joint="joint_body_01" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_01" class="/" joint="joint_body_01" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_01" class="/" joint="joint_body_01" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_02" class="/" joint="joint_body_02" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_02" class="/" joint="joint_body_02" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_02" class="/" joint="joint_body_02" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_03" class="/" joint="joint_body_03" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_03" class="/" joint="joint_body_03" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_03" class="/" joint="joint_body_03" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_04" class="/" joint="joint_body_04" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_04" class="/" joint="joint_body_04" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_04" class="/" joint="joint_body_04" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_05" class="/" joint="joint_body_05" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_05" class="/" joint="joint_body_05" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_05" class="/" joint="joint_body_05" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_06_passive" class="/" joint="joint_body_06_passive" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_velocity_joint_body_06_passive" class="/" joint="joint_body_06_passive" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_06_passive" class="/" joint="joint_body_06_passive" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_07" class="/" joint="joint_body_07" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_07" class="/" joint="joint_body_07" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_07" class="/" joint="joint_body_07" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_08" class="/" joint="joint_body_08" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_08" class="/" joint="joint_body_08" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_08" class="/" joint="joint_body_08" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_09" class="/" joint="joint_body_09" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_09" class="/" joint="joint_body_09" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_09" class="/" joint="joint_body_09" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_10" class="/" joint="joint_body_10" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_10" class="/" joint="joint_body_10" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_10" class="/" joint="joint_body_10" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_11" class="/" joint="joint_body_11" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_body_11" class="/" joint="joint_body_11" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_11" class="/" joint="joint_body_11" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_body_12_passive" class="/" joint="joint_body_12_passive" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_velocity_joint_body_12_passive" class="/" joint="joint_body_12_passive" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_body_12_passive" class="/" joint="joint_body_12_passive" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_L_0" class="/" joint="joint_leg_0_L_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_0" class="/" joint="joint_leg_0_L_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_0" class="/" joint="joint_leg_0_L_0" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_L_1" class="/" joint="joint_leg_0_L_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_1" class="/" joint="joint_leg_0_L_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_1" class="/" joint="joint_leg_0_L_1" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_L_2" class="/" joint="joint_leg_0_L_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_2" class="/" joint="joint_leg_0_L_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_2" class="/" joint="joint_leg_0_L_2" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_L_3" class="/" joint="joint_leg_0_L_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_L_3" class="/" joint="joint_leg_0_L_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_L_3" class="/" joint="joint_leg_0_L_3" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_R_0" class="/" joint="joint_leg_0_R_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_0" class="/" joint="joint_leg_0_R_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_0" class="/" joint="joint_leg_0_R_0" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_R_1" class="/" joint="joint_leg_0_R_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_1" class="/" joint="joint_leg_0_R_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_1" class="/" joint="joint_leg_0_R_1" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_R_2" class="/" joint="joint_leg_0_R_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_2" class="/" joint="joint_leg_0_R_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_2" class="/" joint="joint_leg_0_R_2" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_0_R_3" class="/" joint="joint_leg_0_R_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_0_R_3" class="/" joint="joint_leg_0_R_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_0_R_3" class="/" joint="joint_leg_0_R_3" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_L_0" class="/" joint="joint_leg_1_L_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_0" class="/" joint="joint_leg_1_L_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_0" class="/" joint="joint_leg_1_L_0" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_L_1" class="/" joint="joint_leg_1_L_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_1" class="/" joint="joint_leg_1_L_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_1" class="/" joint="joint_leg_1_L_1" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_L_2" class="/" joint="joint_leg_1_L_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_2" class="/" joint="joint_leg_1_L_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_2" class="/" joint="joint_leg_1_L_2" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_L_3" class="/" joint="joint_leg_1_L_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_L_3" class="/" joint="joint_leg_1_L_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_L_3" class="/" joint="joint_leg_1_L_3" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_R_0" class="/" joint="joint_leg_1_R_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_0" class="/" joint="joint_leg_1_R_0" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_0" class="/" joint="joint_leg_1_R_0" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_R_1" class="/" joint="joint_leg_1_R_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_1" class="/" joint="joint_leg_1_R_1" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_1" class="/" joint="joint_leg_1_R_1" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_R_2" class="/" joint="joint_leg_1_R_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_2" class="/" joint="joint_leg_1_R_2" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_2" class="/" joint="joint_leg_1_R_2" forcelimited="true" forcerange="-5 5"/>
+    <general name="actuator_position_joint_leg_1_R_3" class="/" joint="joint_leg_1_R_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="10" biasprm="0 -10"/>
+    <general name="actuator_velocity_joint_leg_1_R_3" class="/" joint="joint_leg_1_R_3" ctrllimited="false" ctrlrange="-1000000 1000000" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="0"/>
+    <general name="actuator_torque_joint_leg_1_R_3" class="/" joint="joint_leg_1_R_3" forcelimited="true" forcerange="-5 5"/>
+  </actuator>
+
+  <sensor>
+    <framelinvel objtype="body" objname="Pleurobot3_v41" name="framelinvel_Pleurobot3_v41"/>
+    <frameangvel objtype="body" objname="Pleurobot3_v41" name="frameangvel_Pleurobot3_v41"/>
+    <framelinvel objtype="body" objname="link_body_00" name="framelinvel_link_body_00"/>
+    <frameangvel objtype="body" objname="link_body_00" name="frameangvel_link_body_00"/>
+    <framelinvel objtype="body" objname="link_body_01" name="framelinvel_link_body_01"/>
+    <frameangvel objtype="body" objname="link_body_01" name="frameangvel_link_body_01"/>
+    <framelinvel objtype="body" objname="link_body_02" name="framelinvel_link_body_02"/>
+    <frameangvel objtype="body" objname="link_body_02" name="frameangvel_link_body_02"/>
+    <framelinvel objtype="body" objname="link_body_03" name="framelinvel_link_body_03"/>
+    <frameangvel objtype="body" objname="link_body_03" name="frameangvel_link_body_03"/>
+    <framelinvel objtype="body" objname="link_body_04" name="framelinvel_link_body_04"/>
+    <frameangvel objtype="body" objname="link_body_04" name="frameangvel_link_body_04"/>
+    <framelinvel objtype="body" objname="link_body_05" name="framelinvel_link_body_05"/>
+    <frameangvel objtype="body" objname="link_body_05" name="frameangvel_link_body_05"/>
+    <framelinvel objtype="body" objname="link_body_06" name="framelinvel_link_body_06"/>
+    <frameangvel objtype="body" objname="link_body_06" name="frameangvel_link_body_06"/>
+    <framelinvel objtype="body" objname="link_body_07" name="framelinvel_link_body_07"/>
+    <frameangvel objtype="body" objname="link_body_07" name="frameangvel_link_body_07"/>
+    <framelinvel objtype="body" objname="link_body_08" name="framelinvel_link_body_08"/>
+    <frameangvel objtype="body" objname="link_body_08" name="frameangvel_link_body_08"/>
+    <framelinvel objtype="body" objname="link_body_09" name="framelinvel_link_body_09"/>
+    <frameangvel objtype="body" objname="link_body_09" name="frameangvel_link_body_09"/>
+    <framelinvel objtype="body" objname="link_body_10" name="framelinvel_link_body_10"/>
+    <frameangvel objtype="body" objname="link_body_10" name="frameangvel_link_body_10"/>
+    <framelinvel objtype="body" objname="link_body_11" name="framelinvel_link_body_11"/>
+    <frameangvel objtype="body" objname="link_body_11" name="frameangvel_link_body_11"/>
+    <framelinvel objtype="body" objname="link_body_12" name="framelinvel_link_body_12"/>
+    <frameangvel objtype="body" objname="link_body_12" name="frameangvel_link_body_12"/>
+    <framelinvel objtype="body" objname="link_body_13" name="framelinvel_link_body_13"/>
+    <frameangvel objtype="body" objname="link_body_13" name="frameangvel_link_body_13"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_0" name="framelinvel_link_leg_1_L_0"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_0" name="frameangvel_link_leg_1_L_0"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_1" name="framelinvel_link_leg_1_L_1"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_1" name="frameangvel_link_leg_1_L_1"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_2" name="framelinvel_link_leg_1_L_2"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_2" name="frameangvel_link_leg_1_L_2"/>
+    <framelinvel objtype="body" objname="link_leg_1_L_3" name="framelinvel_link_leg_1_L_3"/>
+    <frameangvel objtype="body" objname="link_leg_1_L_3" name="frameangvel_link_leg_1_L_3"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_0" name="framelinvel_link_leg_1_R_0"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_0" name="frameangvel_link_leg_1_R_0"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_1" name="framelinvel_link_leg_1_R_1"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_1" name="frameangvel_link_leg_1_R_1"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_2" name="framelinvel_link_leg_1_R_2"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_2" name="frameangvel_link_leg_1_R_2"/>
+    <framelinvel objtype="body" objname="link_leg_1_R_3" name="framelinvel_link_leg_1_R_3"/>
+    <frameangvel objtype="body" objname="link_leg_1_R_3" name="frameangvel_link_leg_1_R_3"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_0" name="framelinvel_link_leg_0_L_0"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_0" name="frameangvel_link_leg_0_L_0"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_1" name="framelinvel_link_leg_0_L_1"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_1" name="frameangvel_link_leg_0_L_1"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_2" name="framelinvel_link_leg_0_L_2"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_2" name="frameangvel_link_leg_0_L_2"/>
+    <framelinvel objtype="body" objname="link_leg_0_L_3" name="framelinvel_link_leg_0_L_3"/>
+    <frameangvel objtype="body" objname="link_leg_0_L_3" name="frameangvel_link_leg_0_L_3"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_0" name="framelinvel_link_leg_0_R_0"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_0" name="frameangvel_link_leg_0_R_0"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_1" name="framelinvel_link_leg_0_R_1"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_1" name="frameangvel_link_leg_0_R_1"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_2" name="framelinvel_link_leg_0_R_2"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_2" name="frameangvel_link_leg_0_R_2"/>
+    <framelinvel objtype="body" objname="link_leg_0_R_3" name="framelinvel_link_leg_0_R_3"/>
+    <frameangvel objtype="body" objname="link_leg_0_R_3" name="frameangvel_link_leg_0_R_3"/>
+    <jointpos joint="joint_body_00" name="jointpos_joint_body_00"/>
+    <jointvel joint="joint_body_00" name="jointvel_joint_body_00"/>
+    <jointlimitfrc joint="joint_body_00" name="jointlimitfrc_joint_body_00"/>
+    <jointpos joint="joint_body_01" name="jointpos_joint_body_01"/>
+    <jointvel joint="joint_body_01" name="jointvel_joint_body_01"/>
+    <jointlimitfrc joint="joint_body_01" name="jointlimitfrc_joint_body_01"/>
+    <jointpos joint="joint_body_02" name="jointpos_joint_body_02"/>
+    <jointvel joint="joint_body_02" name="jointvel_joint_body_02"/>
+    <jointlimitfrc joint="joint_body_02" name="jointlimitfrc_joint_body_02"/>
+    <jointpos joint="joint_body_03" name="jointpos_joint_body_03"/>
+    <jointvel joint="joint_body_03" name="jointvel_joint_body_03"/>
+    <jointlimitfrc joint="joint_body_03" name="jointlimitfrc_joint_body_03"/>
+    <jointpos joint="joint_body_04" name="jointpos_joint_body_04"/>
+    <jointvel joint="joint_body_04" name="jointvel_joint_body_04"/>
+    <jointlimitfrc joint="joint_body_04" name="jointlimitfrc_joint_body_04"/>
+    <jointpos joint="joint_body_05" name="jointpos_joint_body_05"/>
+    <jointvel joint="joint_body_05" name="jointvel_joint_body_05"/>
+    <jointlimitfrc joint="joint_body_05" name="jointlimitfrc_joint_body_05"/>
+    <jointpos joint="joint_body_06_passive" name="jointpos_joint_body_06_passive"/>
+    <jointvel joint="joint_body_06_passive" name="jointvel_joint_body_06_passive"/>
+    <jointlimitfrc joint="joint_body_06_passive" name="jointlimitfrc_joint_body_06_passive"/>
+    <jointpos joint="joint_body_07" name="jointpos_joint_body_07"/>
+    <jointvel joint="joint_body_07" name="jointvel_joint_body_07"/>
+    <jointlimitfrc joint="joint_body_07" name="jointlimitfrc_joint_body_07"/>
+    <jointpos joint="joint_body_08" name="jointpos_joint_body_08"/>
+    <jointvel joint="joint_body_08" name="jointvel_joint_body_08"/>
+    <jointlimitfrc joint="joint_body_08" name="jointlimitfrc_joint_body_08"/>
+    <jointpos joint="joint_body_09" name="jointpos_joint_body_09"/>
+    <jointvel joint="joint_body_09" name="jointvel_joint_body_09"/>
+    <jointlimitfrc joint="joint_body_09" name="jointlimitfrc_joint_body_09"/>
+    <jointpos joint="joint_body_10" name="jointpos_joint_body_10"/>
+    <jointvel joint="joint_body_10" name="jointvel_joint_body_10"/>
+    <jointlimitfrc joint="joint_body_10" name="jointlimitfrc_joint_body_10"/>
+    <jointpos joint="joint_body_11" name="jointpos_joint_body_11"/>
+    <jointvel joint="joint_body_11" name="jointvel_joint_body_11"/>
+    <jointlimitfrc joint="joint_body_11" name="jointlimitfrc_joint_body_11"/>
+    <jointpos joint="joint_body_12_passive" name="jointpos_joint_body_12_passive"/>
+    <jointvel joint="joint_body_12_passive" name="jointvel_joint_body_12_passive"/>
+    <jointlimitfrc joint="joint_body_12_passive" name="jointlimitfrc_joint_body_12_passive"/>
+    <jointpos joint="joint_leg_1_L_0" name="jointpos_joint_leg_1_L_0"/>
+    <jointvel joint="joint_leg_1_L_0" name="jointvel_joint_leg_1_L_0"/>
+    <jointlimitfrc joint="joint_leg_1_L_0" name="jointlimitfrc_joint_leg_1_L_0"/>
+    <jointpos joint="joint_leg_1_L_1" name="jointpos_joint_leg_1_L_1"/>
+    <jointvel joint="joint_leg_1_L_1" name="jointvel_joint_leg_1_L_1"/>
+    <jointlimitfrc joint="joint_leg_1_L_1" name="jointlimitfrc_joint_leg_1_L_1"/>
+    <jointpos joint="joint_leg_1_L_2" name="jointpos_joint_leg_1_L_2"/>
+    <jointvel joint="joint_leg_1_L_2" name="jointvel_joint_leg_1_L_2"/>
+    <jointlimitfrc joint="joint_leg_1_L_2" name="jointlimitfrc_joint_leg_1_L_2"/>
+    <jointpos joint="joint_leg_1_L_3" name="jointpos_joint_leg_1_L_3"/>
+    <jointvel joint="joint_leg_1_L_3" name="jointvel_joint_leg_1_L_3"/>
+    <jointlimitfrc joint="joint_leg_1_L_3" name="jointlimitfrc_joint_leg_1_L_3"/>
+    <jointpos joint="joint_leg_1_R_0" name="jointpos_joint_leg_1_R_0"/>
+    <jointvel joint="joint_leg_1_R_0" name="jointvel_joint_leg_1_R_0"/>
+    <jointlimitfrc joint="joint_leg_1_R_0" name="jointlimitfrc_joint_leg_1_R_0"/>
+    <jointpos joint="joint_leg_1_R_1" name="jointpos_joint_leg_1_R_1"/>
+    <jointvel joint="joint_leg_1_R_1" name="jointvel_joint_leg_1_R_1"/>
+    <jointlimitfrc joint="joint_leg_1_R_1" name="jointlimitfrc_joint_leg_1_R_1"/>
+    <jointpos joint="joint_leg_1_R_2" name="jointpos_joint_leg_1_R_2"/>
+    <jointvel joint="joint_leg_1_R_2" name="jointvel_joint_leg_1_R_2"/>
+    <jointlimitfrc joint="joint_leg_1_R_2" name="jointlimitfrc_joint_leg_1_R_2"/>
+    <jointpos joint="joint_leg_1_R_3" name="jointpos_joint_leg_1_R_3"/>
+    <jointvel joint="joint_leg_1_R_3" name="jointvel_joint_leg_1_R_3"/>
+    <jointlimitfrc joint="joint_leg_1_R_3" name="jointlimitfrc_joint_leg_1_R_3"/>
+    <jointpos joint="joint_leg_0_L_0" name="jointpos_joint_leg_0_L_0"/>
+    <jointvel joint="joint_leg_0_L_0" name="jointvel_joint_leg_0_L_0"/>
+    <jointlimitfrc joint="joint_leg_0_L_0" name="jointlimitfrc_joint_leg_0_L_0"/>
+    <jointpos joint="joint_leg_0_L_1" name="jointpos_joint_leg_0_L_1"/>
+    <jointvel joint="joint_leg_0_L_1" name="jointvel_joint_leg_0_L_1"/>
+    <jointlimitfrc joint="joint_leg_0_L_1" name="jointlimitfrc_joint_leg_0_L_1"/>
+    <jointpos joint="joint_leg_0_L_2" name="jointpos_joint_leg_0_L_2"/>
+    <jointvel joint="joint_leg_0_L_2" name="jointvel_joint_leg_0_L_2"/>
+    <jointlimitfrc joint="joint_leg_0_L_2" name="jointlimitfrc_joint_leg_0_L_2"/>
+    <jointpos joint="joint_leg_0_L_3" name="jointpos_joint_leg_0_L_3"/>
+    <jointvel joint="joint_leg_0_L_3" name="jointvel_joint_leg_0_L_3"/>
+    <jointlimitfrc joint="joint_leg_0_L_3" name="jointlimitfrc_joint_leg_0_L_3"/>
+    <jointpos joint="joint_leg_0_R_0" name="jointpos_joint_leg_0_R_0"/>
+    <jointvel joint="joint_leg_0_R_0" name="jointvel_joint_leg_0_R_0"/>
+    <jointlimitfrc joint="joint_leg_0_R_0" name="jointlimitfrc_joint_leg_0_R_0"/>
+    <jointpos joint="joint_leg_0_R_1" name="jointpos_joint_leg_0_R_1"/>
+    <jointvel joint="joint_leg_0_R_1" name="jointvel_joint_leg_0_R_1"/>
+    <jointlimitfrc joint="joint_leg_0_R_1" name="jointlimitfrc_joint_leg_0_R_1"/>
+    <jointpos joint="joint_leg_0_R_2" name="jointpos_joint_leg_0_R_2"/>
+    <jointvel joint="joint_leg_0_R_2" name="jointvel_joint_leg_0_R_2"/>
+    <jointlimitfrc joint="joint_leg_0_R_2" name="jointlimitfrc_joint_leg_0_R_2"/>
+    <jointpos joint="joint_leg_0_R_3" name="jointpos_joint_leg_0_R_3"/>
+    <jointvel joint="joint_leg_0_R_3" name="jointvel_joint_leg_0_R_3"/>
+    <jointlimitfrc joint="joint_leg_0_R_3" name="jointlimitfrc_joint_leg_0_R_3"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_00" name="actuatorfrc_position_joint_body_00"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_00" name="actuatorfrc_velocity_joint_body_00"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_00" name="actuatorfrc_motor_joint_body_00"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_01" name="actuatorfrc_position_joint_body_01"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_01" name="actuatorfrc_velocity_joint_body_01"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_01" name="actuatorfrc_motor_joint_body_01"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_02" name="actuatorfrc_position_joint_body_02"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_02" name="actuatorfrc_velocity_joint_body_02"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_02" name="actuatorfrc_motor_joint_body_02"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_03" name="actuatorfrc_position_joint_body_03"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_03" name="actuatorfrc_velocity_joint_body_03"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_03" name="actuatorfrc_motor_joint_body_03"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_04" name="actuatorfrc_position_joint_body_04"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_04" name="actuatorfrc_velocity_joint_body_04"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_04" name="actuatorfrc_motor_joint_body_04"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_05" name="actuatorfrc_position_joint_body_05"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_05" name="actuatorfrc_velocity_joint_body_05"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_05" name="actuatorfrc_motor_joint_body_05"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_06_passive" name="actuatorfrc_position_joint_body_06_passive"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_06_passive" name="actuatorfrc_velocity_joint_body_06_passive"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_06_passive" name="actuatorfrc_motor_joint_body_06_passive"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_07" name="actuatorfrc_position_joint_body_07"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_07" name="actuatorfrc_velocity_joint_body_07"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_07" name="actuatorfrc_motor_joint_body_07"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_08" name="actuatorfrc_position_joint_body_08"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_08" name="actuatorfrc_velocity_joint_body_08"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_08" name="actuatorfrc_motor_joint_body_08"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_09" name="actuatorfrc_position_joint_body_09"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_09" name="actuatorfrc_velocity_joint_body_09"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_09" name="actuatorfrc_motor_joint_body_09"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_10" name="actuatorfrc_position_joint_body_10"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_10" name="actuatorfrc_velocity_joint_body_10"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_10" name="actuatorfrc_motor_joint_body_10"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_11" name="actuatorfrc_position_joint_body_11"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_11" name="actuatorfrc_velocity_joint_body_11"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_11" name="actuatorfrc_motor_joint_body_11"/>
+
+    <actuatorfrc actuator="actuator_position_joint_body_12_passive" name="actuatorfrc_position_joint_body_12_passive"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_body_12_passive" name="actuatorfrc_velocity_joint_body_12_passive"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_body_12_passive" name="actuatorfrc_motor_joint_body_12_passive"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_0" name="actuatorfrc_position_joint_leg_0_L_0"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_0" name="actuatorfrc_velocity_joint_leg_0_L_0"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_0" name="actuatorfrc_motor_joint_leg_0_L_0"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_1" name="actuatorfrc_position_joint_leg_0_L_1"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_1" name="actuatorfrc_velocity_joint_leg_0_L_1"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_1" name="actuatorfrc_motor_joint_leg_0_L_1"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_2" name="actuatorfrc_position_joint_leg_0_L_2"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_2" name="actuatorfrc_velocity_joint_leg_0_L_2"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_2" name="actuatorfrc_motor_joint_leg_0_L_2"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_L_3" name="actuatorfrc_position_joint_leg_0_L_3"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_L_3" name="actuatorfrc_velocity_joint_leg_0_L_3"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_L_3" name="actuatorfrc_motor_joint_leg_0_L_3"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_0" name="actuatorfrc_position_joint_leg_0_R_0"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_0" name="actuatorfrc_velocity_joint_leg_0_R_0"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_0" name="actuatorfrc_motor_joint_leg_0_R_0"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_1" name="actuatorfrc_position_joint_leg_0_R_1"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_1" name="actuatorfrc_velocity_joint_leg_0_R_1"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_1" name="actuatorfrc_motor_joint_leg_0_R_1"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_2" name="actuatorfrc_position_joint_leg_0_R_2"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_2" name="actuatorfrc_velocity_joint_leg_0_R_2"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_2" name="actuatorfrc_motor_joint_leg_0_R_2"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_0_R_3" name="actuatorfrc_position_joint_leg_0_R_3"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_0_R_3" name="actuatorfrc_velocity_joint_leg_0_R_3"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_0_R_3" name="actuatorfrc_motor_joint_leg_0_R_3"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_0" name="actuatorfrc_position_joint_leg_1_L_0"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_0" name="actuatorfrc_velocity_joint_leg_1_L_0"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_0" name="actuatorfrc_motor_joint_leg_1_L_0"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_1" name="actuatorfrc_position_joint_leg_1_L_1"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_1" name="actuatorfrc_velocity_joint_leg_1_L_1"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_1" name="actuatorfrc_motor_joint_leg_1_L_1"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_2" name="actuatorfrc_position_joint_leg_1_L_2"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_2" name="actuatorfrc_velocity_joint_leg_1_L_2"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_2" name="actuatorfrc_motor_joint_leg_1_L_2"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_L_3" name="actuatorfrc_position_joint_leg_1_L_3"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_L_3" name="actuatorfrc_velocity_joint_leg_1_L_3"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_L_3" name="actuatorfrc_motor_joint_leg_1_L_3"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_0" name="actuatorfrc_position_joint_leg_1_R_0"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_0" name="actuatorfrc_velocity_joint_leg_1_R_0"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_0" name="actuatorfrc_motor_joint_leg_1_R_0"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_1" name="actuatorfrc_position_joint_leg_1_R_1"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_1" name="actuatorfrc_velocity_joint_leg_1_R_1"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_1" name="actuatorfrc_motor_joint_leg_1_R_1"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_2" name="actuatorfrc_position_joint_leg_1_R_2"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_2" name="actuatorfrc_velocity_joint_leg_1_R_2"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_2" name="actuatorfrc_motor_joint_leg_1_R_2"/>
+
+    <actuatorfrc actuator="actuator_position_joint_leg_1_R_3" name="actuatorfrc_position_joint_leg_1_R_3"/>
+
+    <actuatorfrc actuator="actuator_velocity_joint_leg_1_R_3" name="actuatorfrc_velocity_joint_leg_1_R_3"/>
+
+    <actuatorfrc actuator="actuator_torque_joint_leg_1_R_3" name="actuatorfrc_motor_joint_leg_1_R_3"/>
+  </sensor>
+</mujoco>

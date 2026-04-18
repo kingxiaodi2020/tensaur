@@ -1,5 +1,5 @@
 # Training settings
-num_timesteps: 10000000
+num_timesteps: 1000000
 num_envs: 512
 num_eval_envs: 16
 episode_length: 1000

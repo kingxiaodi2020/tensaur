@@ -1,0 +1,38 @@
+<mujoco model="Pleurobot_Length_Comparison">
+  <!--
+    Load two complete MJCF models into one scene and place them side-by-side.
+    - Both models share the same x/z origin reference (head start alignment basis).
+    - Second model is shifted in +y for visual comparison.
+  -->
+
+  <compiler angle="radian" boundmass="1e-06" boundinertia="1e-12"/>
+  <option timestep="0.001" iterations="1000"/>
+
+  <visual>
+    <global offwidth="1600" offheight="900"/>
+    <headlight ambient="0.03 0.03 0.03" diffuse="0.12 0.12 0.12" specular="0 0 0"/>
+    <map znear="0.0001" zfar="6"/>
+  </visual>
+
+  <asset>
+    <!-- Original pleurobot chain model -->
+    <model name="orig" file="mjmodel.xml"/>
+    <!-- Pleurobot + tensegrity spine model -->
+    <model name="tense" file="pleurobot_tensegrity_spine.xml"/>
+  </asset>
+
+  <worldbody>
+    <!-- Keep same start reference point -->
+    <frame pos="0 0 0">
+      <attach model="orig" prefix="orig_"/>
+    </frame>
+
+    <!-- Side-by-side placement: shift only in y -->
+    <frame pos="0 0.5 0">
+      <attach model="tense" prefix="tense_"/>
+    </frame>
+
+    <!-- Overview camera -->
+    <camera name="compare_view" pos="1.8 0.6 1.1" xyaxes="-0.4 0.9 0  -0.3 -0.15 0.94" fovy="45"/>
+  </worldbody>
+</mujoco>

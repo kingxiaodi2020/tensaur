@@ -30,8 +30,8 @@ import pathlib
 import warnings
 
 from brax.training.agents.ppo import networks as ppo_networks
-# from brax.training.agents.ppo import train as ppo
-from scripts import train as ppo
+from brax.training.agents.ppo import train as ppo
+# from scripts import train as ppo
 from omegaconf import DictConfig, OmegaConf
 from hydra.core.hydra_config import HydraConfig
 from flax.training import orbax_utils
@@ -337,10 +337,7 @@ def main(cfg: DictConfig):
                     print(f"Sensor '{sensor_name}' not found in model")
                     return None
             
-            # Add foot_names for contact sensors
-            foot_names = ["fr", "fl", "rr", "rl"]
-            contact_threshold = 1e-3  # Contact force threshold (N)
-            trajectory_data = []    # save trajectory data if needed
+            trajectory_data = []
 
             rng = jax.random.key(cfg.agent.seed)
             state = jit_reset_fn(rng)
@@ -356,53 +353,23 @@ def main(cfg: DictConfig):
                     pos_x, pos_y, pos_z = pos_data[0], pos_data[1], pos_data[2]
                 else:
                     pos_x, pos_y, pos_z = None, None, None
-                            
-                # Get foot contact data
-                foot_contacts = []
-                foot_forces = []
-                for foot in foot_names:
-                    contact_sensor_name = f"{foot}_foot_touch"
-                    contact_force = get_sensor_data_mujoco(env.mj_model, state.data, contact_sensor_name)
 
-                    if contact_force is not None:
-                        # Calculate the magnitude of the contact force
-                        force_magnitude = float(np.linalg.norm(contact_force))
-                        foot_forces.append(force_magnitude)
-
-                        # Determine if the foot is in contact with the ground
-                        is_contact = 1 if force_magnitude > contact_threshold else 0
-                        foot_contacts.append(is_contact)
-                    else:
-                        foot_contacts.append(0)
-                        foot_forces.append(0.0)
-
-                # Append trajectory data
                 trajectory_data.append({
                     "step": step,
                     "pos_x": float(pos_x) if pos_x is not None else None,
                     "pos_y": float(pos_y) if pos_y is not None else None,
                     "pos_z": float(pos_z) if pos_z is not None else None,
-                    "FR_contact": foot_contacts[0],
-                    "FL_contact": foot_contacts[1],
-                    "RR_contact": foot_contacts[2],
-                    "RL_contact": foot_contacts[3],
-                    "FR_force": foot_forces[0],
-                    "FL_force": foot_forces[1],
-                    "RR_force": foot_forces[2],
-                    "RL_force": foot_forces[3],
                 })
 
                 rollout.append(state)
                 if state.done:
                     break
-            
-            # Optionally save trajectory data to a csv file
+
+            # Save trajectory data to csv
             trajectory_file = f"{logdir}/{run_id}_trajectory.csv"
             with open(trajectory_file, mode="w", newline="") as file:
                 writer = csv.DictWriter(file, fieldnames=[
                     "step", "pos_x", "pos_y", "pos_z",
-                    "FR_contact", "FL_contact", "RR_contact", "RL_contact",
-                    "FR_force", "FL_force", "RR_force", "RL_force"
                 ])
                 writer.writeheader()
                 writer.writerows(trajectory_data)
@@ -418,7 +385,13 @@ def main(cfg: DictConfig):
             scene_option.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = False
             scene_option.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = False
 
-            camera_names = [cfg.render_camera, "overview"]
+            # 从模型中读取所有 camera 名称
+            camera_names = [
+                mujoco.mj_id2name(env.mj_model, mujoco.mjtObj.mjOBJ_CAMERA, i)
+                for i in range(env.mj_model.ncam)
+            ]
+            if not camera_names:
+                camera_names = [cfg.render_camera]
 
             for camera in camera_names:
                 frames = env.render(
