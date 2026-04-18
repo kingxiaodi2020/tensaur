@@ -51,7 +51,7 @@ import mujoco
 import numpy as np
 
 # 加载模型
-model = mujoco.MjModel.from_xml_path(r"/media/di/4441-E469/tensaur-main/src/tensegrity_playground/envs/tensaur/xmls/tensegrity_0.xml")
+model = mujoco.MjModel.from_xml_path(r"/media/di/4441-E469/tensaur-main/PleurobotII/pleurobot_tensegrity_spine.xml")
 data = mujoco.MjData(model)
 total_mass = 0
 
