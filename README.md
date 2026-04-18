@@ -52,7 +52,7 @@ To start the simulation for the Pleurobot with a tensegrity spine, use the follo
    The corresponding environment file is located at:
 
    ```
-   ...//src/tensegrity_playground/envs/tensaur/radius.py
+   .../src/tensegrity_playground/envs/tensaur/radius.py
    ```
 
 2. **Run the walking environment:**
