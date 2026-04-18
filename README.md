@@ -73,7 +73,6 @@ To start the simulation for the Pleurobot with a tensegrity spine, use the follo
 
 - **`generate_morphology.py`** - Creates the robot morphology (structure, joints, tendons)
 - **`generate_pleurobot_tendon.py`** - Creates the Pleurobot morphology with a tensegrity spine
-- **`walk.py`** - Walking environment and control logic for MuJoCo MJX / Playground
 - **`radius.py`** - Environment file for the Pleurobot radius simulation
 - **`run.py`** - Environment file for the Pleurobot running simulation
 - **[`xmls`](xmls )** - Generated MuJoCo XML files, including:
